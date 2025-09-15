@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      MONGO_URL: mongodb://mongo:27017/letzplay
+      JWT_SECRET: change_me
+      JWT_EXPIRES_IN: 7d
+      CLIENT_ORIGIN: http://localhost:5173
+      # leave SMTP_* empty to log emails instead of sending
+      SMTP_HOST:
+      SMTP_PORT:
+      SMTP_USER:
+      SMTP_PASS:
+      SMTP_FROM: "LETZ PLAY <no-reply@letzplay.local>"
+    depends_on:
+      - mongo
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/preorders.csv:/app/preorders.csv
+      - ./products-sample.csv:/app/products-sample.csv
+
+  frontend:
+    image: node:18-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host"
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE: http://localhost:5000
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

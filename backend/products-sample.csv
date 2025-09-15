@@ -1,0 +1,86 @@
+[
+  {
+    "_id": { "$oid": "68c0176d3d932a8259357da4" },
+    "ProductID": "oversized-anime-1",
+    "Name": "Anime Walk Oversized T-Shirt",
+    "Collection": "Oversized T-Shirts",
+    "Price": 36,
+    "Description": "White oversized cotton tee with minimal anime chest graphic.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "White",
+    "ImageURLs": "images/design11.png,images/design12.png",
+    "Stock": 50
+  },
+  {
+    "_id": { "$oid": "68c0176d3d932a8259357da5" },
+    "ProductID": "oversized-anime-2",
+    "Name": "Arise Oversized T-Shirt",
+    "Collection": "Oversized T-Shirts",
+    "Price": 38,
+    "Description": "White oversized tee featuring bold 'Arise' anime back print.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "White",
+    "ImageURLs": "images/oversized2-front.png,images/oversized2-back.png",
+    "Stock": 50
+  },
+  {
+    "_id": { "$oid": "68c0176d3d932a8259357da6" },
+    "ProductID": "oversized-anime-3",
+    "Name": "Purple Shadow Oversized T-Shirt",
+    "Collection": "Oversized T-Shirts",
+    "Price": 40,
+    "Description": "Purple oversized tee with dramatic anime graphic on back.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "Purple",
+    "ImageURLs": "images/oversized3-front.png,images/oversized3-back.png",
+    "Stock": 50
+  },
+  {
+    "_id": { "$oid": "68c0176d3d932a8259357da7" },
+    "ProductID": "oversized-anime-4",
+    "Name": "Wakanda Flames Oversized T-Shirt",
+    "Collection": "Oversized T-Shirts",
+    "Price": 42,
+    "Description": "Black oversized tee with Wakanda Forever flame details.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "Black",
+    "ImageURLs": "images/oversized4-front.png,images/oversized4-back.png",
+    "Stock": 50
+  },
+  {
+    "_id": { "$oid": "68c0176d3d932a8259357da8" },
+    "ProductID": "hoodie-anime-1",
+    "Name": "Spider Emblem Hoodie",
+    "Collection": "Hoodies",
+    "Price": 55,
+    "Description": "Gray hoodie with bold spider chest and back design.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "Gray",
+    "ImageURLs": "images/hoodie1-front.png,images/hoodie1-back.png",
+    "Stock": 40
+  },
+  {
+    "_id": { "$oid": "68c0176d3d932a8259357da9" },
+    "ProductID": "hoodie-anime-2",
+    "Name": "Pain Kanji Hoodie",
+    "Collection": "Hoodies",
+    "Price": 58,
+    "Description": "Black hoodie with Japanese 'Pain' kanji on front, anime print on back.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "Black",
+    "ImageURLs": "images/hoodie2-front.png,images/hoodie2-back.png",
+    "Stock": 40
+  }
+    {
+    "_id": { "$oid": "68c0176d3d932a8259357da10" },
+    "ProductID": "hat-1",
+    "Name": "Syder hat",
+    "Collection": "accessories",
+    "Price": 58,
+    "Description": "Black hoodie with Japanese 'Pain' kanji on front, anime print on back.",
+    "Sizes": "S,M,L,XL",
+    "Colors": "Black",
+    "ImageURLs": "images/hoodie2-front.png,images/hoodie2-back.png",
+    "Stock": 40
+  }
+]
