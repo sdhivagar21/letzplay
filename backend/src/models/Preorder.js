@@ -1,19 +1,20 @@
 import mongoose from 'mongoose';
 
-const preorderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  userName: String,
-  userEmail: String,
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-  productSKU: String,
-  productName: String,
-  size: String,
-  color: String,
-  quantity: Number,
-  price: Number,
-  status: { type: String, enum: ['pending', 'processed', 'shipped', 'cancelled'], default: 'pending' },
-  preorderDate: { type: Date, default: Date.now },
-  deliveryDate: Date
-});
+const PreorderSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // optional
+    email: { type: String },                                     // allow guest email
+    sku: { type: String, required: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
 
-export default mongoose.model('Preorder', preorderSchema);
+    size: { type: String },
+    color: { type: String },
+    qty: { type: Number, default: 1 },
+
+    status: { type: String, default: 'pending', enum: ['pending','processed','shipped','cancelled'] }
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model('Preorder', PreorderSchema);
