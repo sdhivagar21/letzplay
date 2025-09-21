@@ -1,42 +1,63 @@
 import fs from 'fs';
-import { createObjectCsvWriter } from 'csv-writer';
+import path from 'path';
 
-const file = './preorders.csv';
-const header = [
-  { id: 'OrderID', title: 'OrderID' },
-  { id: 'UserName', title: 'UserName' },
-  { id: 'UserEmail', title: 'UserEmail' },
-  { id: 'ProductID', title: 'ProductID' },
-  { id: 'ProductName', title: 'ProductName' },
-  { id: 'Size', title: 'Size' },
-  { id: 'Color', title: 'Color' },
-  { id: 'Quantity', title: 'Quantity' },
-  { id: 'Price', title: 'Price' },
-  { id: 'PreorderDate', title: 'PreorderDate' },
-  { id: 'DeliveryDate', title: 'DeliveryDate' },
-  { id: 'Status', title: 'Status' }
+const CSV_PATH =
+  process.env.PREORDER_CSV_PATH ||
+  path.join(process.cwd(), 'preorders.csv'); // default: project root
+
+const HEADERS = [
+  'OrderID',
+  'UserName',
+  'UserEmail',
+  'ProductID',
+  'ProductName',
+  'Size',
+  'Color',
+  'Quantity',
+  'Price',
+  'PreorderDate',
+  'DeliveryDate',
+  'Status'
 ];
 
-export const appendPreorderCsv = async (po) => {
-  if (!fs.existsSync(file)) {
-    const w = createObjectCsvWriter({ path: file, header });
-    await w.writeRecords([]);
-  }
-  const w = createObjectCsvWriter({ path: file, header, append: true });
-  await w.writeRecords([{
-    OrderID: po._id,
-    UserName: po.userName,
-    UserEmail: po.userEmail,
-    ProductID: po.productSKU,
-    ProductName: po.productName,
-    Size: po.size,
-    Color: po.color,
-    Quantity: po.quantity,
-    Price: po.price,
-    PreorderDate: po.preorderDate,
-    DeliveryDate: po.deliveryDate || '',
-    Status: po.status
-  }]);
-};
+function esc(v) {
+  if (v === undefined || v === null) return '';
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
-export const getCsvPath = () => file;
+async function ensureHeader() {
+  try {
+    await fs.promises.access(CSV_PATH, fs.constants.F_OK);
+    // exists -> leave as is
+  } catch {
+    const dir = path.dirname(CSV_PATH);
+    await fs.promises.mkdir(dir, { recursive: true });
+    const bom = '\uFEFF'; // UTF-8 BOM for Excel
+    const header = HEADERS.join(',') + '\r\n';
+    await fs.promises.writeFile(CSV_PATH, bom + header, 'utf8');
+  }
+}
+
+export async function appendPreorderToCSV(doc, user) {
+  await ensureHeader();
+
+  const row = [
+    esc(doc._id),
+    esc(user?.name || ''),
+    esc(user?.email || doc.email || ''),
+    esc(doc.sku),
+    esc(doc.name),
+    esc(doc.size || ''),
+    esc(doc.color || ''),
+    esc(doc.qty ?? 1),
+    esc(doc.price ?? ''),
+    esc(doc.createdAt?.toISOString?.() || new Date().toISOString()),
+    esc(doc.deliveryDate || ''),
+    esc(doc.status || 'pending')
+  ].join(',') + '\r\n';
+
+  await fs.promises.appendFile(CSV_PATH, row, 'utf8');
+}
+
+export { CSV_PATH, HEADERS };

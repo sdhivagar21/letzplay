@@ -2,6 +2,16 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import api from '../api.js';
 import { Link } from 'react-router-dom';
 
+// Helpers for "New" & ordering
+const NEW_DAYS = 45;
+const isNew = (p) =>
+  (Array.isArray(p.tags) && p.tags.includes('new')) ||
+  (p.releasedAt && (Date.now() - new Date(p.releasedAt).getTime()) < NEW_DAYS * 864e5);
+
+const byPriority = (a, b) =>
+  (Number(b.priority || 0) - Number(a.priority || 0)) ||
+  (new Date(b.releasedAt || b.createdAt || 0) - new Date(a.releasedAt || a.createdAt || 0));
+
 export default function Home() {
   const [products, setProducts] = useState([]);
   const videoRef = useRef(null);
@@ -12,27 +22,25 @@ export default function Home() {
       .catch(console.error);
   }, []);
 
-  // Ensure autoplay works on browsers that block it
   useEffect(() => {
     if (videoRef.current) {
-      const playPromise = videoRef.current.play?.();
-      if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch(() => {
-          // ignored if autoplay blocked
-        });
-      }
+      const p = videoRef.current.play?.();
+      if (p && typeof p.then === 'function') p.catch(() => {});
     }
   }, []);
 
-  // Collections for sections
-  const collections = useMemo(() => ({
-    New: products.slice(0, 8),
-    'Oversized T-Shirts': products.filter(p => p.collection === 'Oversized T-Shirts').slice(0, 12),
-    Hoodies: products.filter(p => p.collection === 'Hoodies').slice(0, 12),
-    Accessories: products.filter(p => p.collection === 'Accessories').slice(0, 12),
-  }), [products]);
+  const collections = useMemo(() => {
+    const newItems = [...products].filter(isNew).sort(byPriority).slice(0, 12);
+    const pick = (name) =>
+      products.filter((p) => p.collection === name).sort(byPriority).slice(0, 12);
+    return {
+      New: newItems,
+      'Oversized T-Shirts': pick('Oversized T-Shirts'),
+      Hoodies: pick('Hoodies'),
+      Accessories: pick('Accessories'),
+    };
+  }, [products]);
 
-  // Card with hover swap
   const Card = ({ p }) => {
     const list = p.images || p.imageUrls || p.ImageURLs || [];
     const img1 = list[0] || '/images/placeholder-1.jpg';
@@ -69,7 +77,6 @@ export default function Home() {
           poster="/images/hero-mobile.jpg"
         >
           <source src="/videos/hero.mp4" type="video/mp4" />
-          {/* Optional: <source src="/videos/hero.webm" type="video/webm" /> */}
           Your browser does not support the video tag.
         </video>
 
@@ -83,7 +90,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* NEW (main) */}
+      {/* New */}
       <section className="sk-section">
         <div className="sk-section-head">
           <h2>New</h2>

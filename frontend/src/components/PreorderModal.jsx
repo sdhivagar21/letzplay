@@ -5,7 +5,6 @@ export default function PreorderModal({ product, onClose, onSuccess }) {
   const [size, setSize] = useState(product.sizes?.[0] || '');
   const [color, setColor] = useState(product.colors?.[0] || '');
   const [qty, setQty] = useState(1);
-  const [email, setEmail] = useState(''); // allow guest
 
   const submit = async () => {
     try {
@@ -13,14 +12,18 @@ export default function PreorderModal({ product, onClose, onSuccess }) {
         sku: product.sku || product.ProductID || product._id,
         size,
         color,
-        quantity: qty,
-        email: email || undefined
+        quantity: qty
       });
       onSuccess?.(data);
       onClose?.();
       alert('Pre-order saved!');
     } catch (e) {
-      console.error(e);
+      const status = e?.response?.status;
+      if (status === 401) {
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login?next=${next}`;
+        return;
+      }
       alert(e.response?.data?.message || 'Error');
     }
   };
@@ -45,10 +48,6 @@ export default function PreorderModal({ product, onClose, onSuccess }) {
 
         <label>Quantity:
           <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} />
-        </label>
-
-        <label>Email (optional for guest):
-          <input type="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
         </label>
 
         <div style={{marginTop:12}}>

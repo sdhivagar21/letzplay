@@ -2,15 +2,16 @@ import mongoose from 'mongoose';
 
 const PreorderSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // optional
-    email: { type: String },                                     // allow guest email
-    sku: { type: String, required: true },
-    name: { type: String, required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    email: { type: String, required: true }, // from req.user.email
+
+    sku:   { type: String, required: true },
+    name:  { type: String, required: true },
     price: { type: Number, required: true },
 
-    size: { type: String },
+    size:  { type: String },
     color: { type: String },
-    qty: { type: Number, default: 1 },
+    qty:   { type: Number, default: 1 },
 
     status: { type: String, default: 'pending', enum: ['pending','processed','shipped','cancelled'] }
   },
