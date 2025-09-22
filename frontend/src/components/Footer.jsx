@@ -20,20 +20,7 @@ export default function Footer() {
           <a href="/collections/Accessories">Accessories</a>
         </div>
 
-        <div className="footer__col">
-          <h4>Support</h4>
-          <a href="/contact">Contact</a><br/>
-          <a href="/returns">Returns</a><br/>
-          <a href="/shipping">Shipping</a>
-        </div>
 
-        <div className="footer__col">
-          <h4>Company</h4>
-          <a href="/about">About</a><br/>
-          <a href="/careers">Careers</a><br/>
-          <a href="/privacy">Privacy</a><br/>
-          <a href="/terms">Terms</a>
-        </div>
       </div>
 
       <div className="footer__bar container">
