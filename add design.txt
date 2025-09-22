@@ -1,0 +1,14 @@
+{
+  "sku": "hoodie-new-001",
+  "name": "Essential Fleece Hoodie",
+  "collection": "Hoodies",
+  "price": 59,
+  "description": "Soft fleece hoodie with a clean minimal fit.",
+  "sizes": ["S","M","L","XL"],
+  "colors": ["Black","Grey"],
+  "images": ["/images/hoodie1-front.png", "/images/hoodie1-back.png"],
+  "stock": 50,
+  "tags": ["new"],
+  "priority": 100,
+  "releasedAt": { "$date": "2025-09-21T00:00:00Z" }
+}
