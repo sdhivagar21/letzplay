@@ -29,11 +29,11 @@ const ScrollToTop = () => {
 const NotFound = () => (
   <main className="page page--narrow empty">
     <p className="empty__code">404</p>
-    <h1 className="h-display h-2">Game over. This page doesn’t exist.</h1>
+    <h1 className="h-display h-2">This page doesn’t exist</h1>
     <p className="muted">The link may be old, or the print may have been retired.</p>
     <div className="row-actions">
-      <Link className="btn btn--coin" to="/"><span className="pad pad--a">A</span>Back to home</Link>
-      <Link className="btn btn--ghost" to="/collections/All">Browse everything</Link>
+      <Link className="btn btn--solid" to="/">Back to home</Link>
+      <Link className="btn btn--text" to="/collections/All">Browse everything</Link>
     </div>
   </main>
 );

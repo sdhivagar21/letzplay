@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { useParams, Link, NavLink } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams, Link, NavLink, useSearchParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs.jsx';
 import ProductCard, { CardSkeletons } from '../components/ProductCard.jsx';
 import { useProducts, productsIn, idOf } from '../api.js';
@@ -18,8 +18,12 @@ export default function CollectionPage() {
   const { name } = useParams();
   const decoded = decodeURIComponent(name);
   const { products, loading } = useProducts();
-  const [q, setQ] = useState('');
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get('q') || '');
   const [sort, setSort] = useState('featured');
+
+  // The header search sends people here with ?q=term.
+  useEffect(() => { setQ(params.get('q') || ''); }, [params, decoded]);
 
   const base = useMemo(() => productsIn(products, decoded), [products, decoded]);
 
@@ -41,7 +45,7 @@ export default function CollectionPage() {
   const title = TITLES[decoded.toLowerCase()] || decoded;
 
   return (
-    <main className="page container">
+    <main className="page">
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: title }]} />
       <header className="page__head">
         <h1 className="h-display h-1">{title}</h1>
@@ -80,13 +84,13 @@ export default function CollectionPage() {
             <>
               <h2 className="h-display h-3">No match for “{q.trim()}”</h2>
               <p className="muted">Try a shorter word, or a colour like black or white.</p>
-              <button type="button" className="btn btn--line-dark" onClick={() => setQ('')}>Clear search</button>
+              <button type="button" className="btn btn--line" onClick={() => setQ('')}>Clear search</button>
             </>
           ) : (
             <>
               <h2 className="h-display h-3">Nothing in {title} yet</h2>
               <p className="muted">This collection has no products right now.</p>
-              <Link className="btn btn--coin" to="/collections/All">Browse everything</Link>
+              <Link className="btn btn--solid" to="/collections/All">Browse everything</Link>
             </>
           )}
         </div>

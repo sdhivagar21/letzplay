@@ -11,7 +11,7 @@ export default function Profile() {
     return (
       <main className="page page--narrow empty">
         <h1 className="h-display h-2">Sign in to see your profile</h1>
-        <Link className="btn btn--coin" to="/login?next=%2Fprofile"><span className="pad pad--a">A</span>Sign in</Link>
+        <Link className="btn btn--solid" to="/login?next=%2Fprofile">Sign in</Link>
       </main>
     );
   }
@@ -19,7 +19,7 @@ export default function Profile() {
   const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase();
 
   return (
-    <main className="page page--mid container">
+    <main className="page page--mid">
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'My profile' }]} />
       <header className="page__head"><h1 className="h-display h-1">My profile</h1></header>
 
@@ -33,9 +33,9 @@ export default function Profile() {
       </div>
 
       <div className="row-actions">
-        <Link className="btn btn--coin" to="/cart">My pre-orders</Link>
-        {user.role === 'admin' && <Link className="btn btn--line-dark" to="/admin">Admin dashboard</Link>}
-        <button type="button" className="btn btn--ghost" onClick={() => { logout(); nav('/'); }}>Log out</button>
+        <Link className="btn btn--solid" to="/cart">My pre-orders</Link>
+        {user.role === 'admin' && <Link className="btn btn--line" to="/admin">Admin dashboard</Link>}
+        <button type="button" className="btn btn--text" onClick={() => { logout(); nav('/'); }}>Log out</button>
       </div>
     </main>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:5000' });
@@ -182,3 +182,31 @@ export const errorText = (err, fallback) => {
   if (!err?.response) return 'The shop server is not responding right now. Try again in a minute.';
   return err.response.data?.message || fallback;
 };
+
+/* ------------------------------------------------------------------
+   Small presentation helpers
+   ------------------------------------------------------------------ */
+const SWATCHES = {
+  black: '#1c1b1a', white: '#ffffff', lilac: '#c9a2e0', purple: '#7a4fb5', pink: '#d680ad',
+  navy: '#20255a', grey: '#8e9aa8', gray: '#8e9aa8', beige: '#d9c4a4', tan: '#b88a55',
+  red: '#b3261e', blue: '#2f5fb3', green: '#2f7d4f', brown: '#6b4a32', cream: '#efe6d3',
+};
+// Colour name -> swatch colour (null when the name is not a known colour).
+export const swatch = (name) => SWATCHES[String(name || '').trim().toLowerCase()] || null;
+
+// Fades a block in the first time it scrolls into view.
+// Without IntersectionObserver (or with reduced motion) content simply shows.
+export function Reveal({ as = 'div', className = '', children, ...rest }) {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setSeen(true); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setSeen(true); io.disconnect(); }
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return createElement(as, { ref, className: `reveal ${seen ? 'is-in' : ''} ${className}`.trim(), ...rest }, children);
+}

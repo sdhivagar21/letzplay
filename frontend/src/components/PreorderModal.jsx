@@ -58,8 +58,8 @@ export default function PreorderModal({ product, initial = {}, onClose, onSucces
             <h3 id="po-title" className="h-display h-3">Pre-order placed</h3>
             <p className="muted">{product.name}, size {size || 'n/a'}, quantity {qty}. Its status shows under My pre-orders.</p>
             <div className="row-actions">
-              <Link className="btn btn--coin" to="/cart">View my pre-orders</Link>
-              <button type="button" className="btn btn--ghost" onClick={onClose}>Keep browsing</button>
+              <Link className="btn btn--solid" to="/cart">View my pre-orders</Link>
+              <button type="button" className="btn btn--text" onClick={onClose}>Keep browsing</button>
             </div>
           </div>
         ) : (
@@ -98,10 +98,10 @@ export default function PreorderModal({ product, initial = {}, onClose, onSucces
             {error && <p className="alert" role="alert">{error}</p>}
 
             <div className="row-actions">
-              <button type="button" className="btn btn--coin" onClick={submit} disabled={state === 'saving'}>
-                <span className="pad pad--a">A</span>{state === 'saving' ? 'Placing…' : 'Place pre-order'}
+              <button type="button" className="btn btn--solid" onClick={submit} disabled={state === 'saving'}>
+                {state === 'saving' ? 'Placing…' : 'Place pre-order'}
               </button>
-              <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn btn--text" onClick={onClose}>Cancel</button>
             </div>
           </>
         )}

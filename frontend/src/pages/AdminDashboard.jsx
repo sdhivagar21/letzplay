@@ -40,7 +40,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <main className="page page--mid container">
+    <main className="page page--mid">
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Admin' }]} />
       <header className="page__head"><h1 className="h-display h-1">Admin dashboard</h1></header>
 
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
         <section className="admin-card">
           <h2 className="h-display h-3">Export pre-orders</h2>
           <p className="muted">Download every pre-order as <code>preorders.csv</code>.</p>
-          <button type="button" className="btn btn--coin" onClick={downloadCSV} disabled={busy === 'export'}>
+          <button type="button" className="btn btn--solid" onClick={downloadCSV} disabled={busy === 'export'}>
             {busy === 'export' ? 'Preparing…' : 'Download CSV'}
           </button>
           {exportMsg && <p className={exportMsg.ok ? 'note' : 'alert'} role="status">{exportMsg.text}</p>}
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
         <section className="admin-card">
           <h2 className="h-display h-3">Bulk upload products</h2>
           <p className="muted">Upload a CSV or Excel file with the columns ProductID, Name, Collection, Price, Description, Sizes, Colors, ImageURLs, Stock.</p>
-          <label className={`btn btn--line-dark ${busy === 'upload' ? 'is-disabled' : ''}`}>
+          <label className={`btn btn--line ${busy === 'upload' ? 'is-disabled' : ''}`}>
             {busy === 'upload' ? 'Uploading…' : 'Choose file'}
             <input className="sr-only" type="file" ref={fileRef} onChange={uploadProducts} accept=".csv,.xls,.xlsx" disabled={busy === 'upload'} />
           </label>

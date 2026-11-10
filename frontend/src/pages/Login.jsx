@@ -36,7 +36,6 @@ export default function Login() {
     <main className="auth">
       <div className="auth__art" aria-hidden="true">
         <img src="/images/oversized26-back.webp" alt="" width="800" height="1200" />
-        <p className="h-display auth__art-line">Continue?</p>
       </div>
       <div className="auth__panel">
         <h1 className="h-display h-2">Sign in</h1>
@@ -52,8 +51,8 @@ export default function Login() {
             </span>
           </label>
           {error && <p className="alert" role="alert">{error}</p>}
-          <button className="btn btn--coin btn--lg btn--block" type="submit" disabled={busy}>
-            <span className="pad pad--a">A</span>{busy ? 'Signing in…' : 'Sign in'}
+          <button className="btn btn--solid btn--lg btn--block" type="submit" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
         <p className="auth__switch">New here? <Link to={`/signup${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</Link></p>

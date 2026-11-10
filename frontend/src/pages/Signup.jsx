@@ -41,7 +41,6 @@ export default function Signup() {
     <main className="auth">
       <div className="auth__art" aria-hidden="true">
         <img src="/images/oversized24-back.webp" alt="" width="800" height="1200" />
-        <p className="h-display auth__art-line">New player</p>
       </div>
       <div className="auth__panel">
         <h1 className="h-display h-2">Create account</h1>
@@ -61,8 +60,8 @@ export default function Signup() {
             <span className="field__hint">At least 6 characters</span>
           </label>
           {error && <p className="alert" role="alert">{error}</p>}
-          <button className="btn btn--coin btn--lg btn--block" type="submit" disabled={busy}>
-            <span className="pad pad--a">A</span>{busy ? 'Creating…' : 'Create account'}
+          <button className="btn btn--solid btn--lg btn--block" type="submit" disabled={busy}>
+            {busy ? 'Creating…' : 'Create account'}
           </button>
         </form>
         <p className="auth__switch">Already have an account? <Link to={`/login${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`}>Sign in</Link></p>

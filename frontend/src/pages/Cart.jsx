@@ -21,7 +21,7 @@ export default function Cart() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <main className="page page--mid container">
+    <main className="page page--mid">
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'My pre-orders' }]} />
       <header className="page__head"><h1 className="h-display h-1">My pre-orders</h1></header>
 
@@ -30,8 +30,8 @@ export default function Cart() {
           <h2 className="h-display h-3">Sign in to see your pre-orders</h2>
           <p className="muted">Pre-orders are saved to your account.</p>
           <div className="row-actions">
-            <Link className="btn btn--coin" to="/login?next=%2Fcart"><span className="pad pad--a">A</span>Sign in</Link>
-            <Link className="btn btn--line-dark" to="/signup">Create account</Link>
+            <Link className="btn btn--solid" to="/login?next=%2Fcart">Sign in</Link>
+            <Link className="btn btn--line" to="/signup">Create account</Link>
           </div>
         </div>
       )}
@@ -42,7 +42,7 @@ export default function Cart() {
         <div className="empty">
           <h2 className="h-display h-3">Couldn’t load your pre-orders</h2>
           <p className="muted">{error}</p>
-          <button type="button" className="btn btn--coin" onClick={load}>Try again</button>
+          <button type="button" className="btn btn--solid" onClick={load}>Try again</button>
         </div>
       )}
 
@@ -50,7 +50,7 @@ export default function Cart() {
         <div className="empty">
           <h2 className="h-display h-3">No pre-orders yet</h2>
           <p className="muted">Pick a print and it will show up here with its status.</p>
-          <Link className="btn btn--coin" to="/collections/New"><span className="pad pad--a">A</span>See new drops</Link>
+          <Link className="btn btn--solid" to="/collections/New">See new drops</Link>
         </div>
       )}
 

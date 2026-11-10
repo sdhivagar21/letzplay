@@ -4,14 +4,13 @@ import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import PreorderModal from "../components/PreorderModal.jsx";
 import ProductCard from "../components/ProductCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useProducts, idOf, imagesOf, imgSrc, imgFallback, rupees, collOf, sameColl, isNew } from "../api.js";
+import { useProducts, idOf, imagesOf, imgSrc, imgFallback, rupees, collOf, sameColl, isNew, swatch } from "../api.js";
 
 const VIEW_NAMES = ["Front", "Back"];
 
 export default function ProductPage() {
   const { sku } = useParams();
   const { products, loading } = useProducts();
-  const [active, setActive] = useState(0);
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [qty, setQty] = useState(1);
@@ -24,7 +23,7 @@ export default function ProductPage() {
   const prod = useMemo(() => products.find((x) => idOf(x) === String(sku)) || null, [products, sku]);
 
   useEffect(() => {
-    setActive(0); setQty(1); setNeedSize(false); setShowPre(false);
+    setQty(1); setNeedSize(false); setShowPre(false);
     setSize(prod?.sizes?.length === 1 ? prod.sizes[0] : "");
     setColor(prod?.colors?.[0] || "");
   }, [prod]);
@@ -36,8 +35,8 @@ export default function ProductPage() {
 
   if (loading) {
     return (
-      <main className="page container">
-        <div className="pdp pdp--loading" aria-busy="true"><div className="pdp__main sk-block" /><div><div className="sk-line" /><div className="sk-line sk-line--short" /></div></div>
+      <main className="page">
+        <div className="pdp pdp--loading" aria-busy="true"><div className="pdp__shot sk-block" /><div><div className="sk-line" /><div className="sk-line sk-line--short" /></div></div>
       </main>
     );
   }
@@ -46,13 +45,12 @@ export default function ProductPage() {
       <main className="page page--narrow empty">
         <h1 className="h-display h-2">That print isn’t in the shop</h1>
         <p className="muted">It may have been renamed or retired.</p>
-        <Link className="btn btn--coin" to="/collections/All">Browse everything</Link>
+        <Link className="btn btn--solid" to="/collections/All">Browse everything</Link>
       </main>
     );
   }
 
   const imgs = imagesOf(prod);
-  const mainSrc = imgs[active] || imgs[0];
   const hasSizes = !!prod.sizes?.length;
   const collection = collOf(prod);
 
@@ -63,7 +61,7 @@ export default function ProductPage() {
   };
 
   return (
-    <main className="page container">
+    <main className="page">
       <Breadcrumbs items={[
         { label: "Home", to: "/" },
         { label: collection, to: `/collections/${encodeURIComponent(collection)}` },
@@ -71,35 +69,20 @@ export default function ProductPage() {
       ]} />
 
       <div className="pdp">
-        {/* Gallery */}
-        <div className="pdp__gallery">
-          {imgs.length > 1 && (
-            <div className="pdp__thumbs">
-              {imgs.map((src, i) => (
-                <button key={src + i} type="button" onClick={() => setActive(i)} aria-label={`${VIEW_NAMES[i] || `Image ${i + 1}`} view`}
-                        aria-pressed={i === active} className={`pdp__thumb ${i === active ? "is-active" : ""}`}>
-                  <img src={imgSrc(src)} onError={imgFallback(src)} alt="" loading="lazy" width="80" height="120" />
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="pdp__main">
-            {mainSrc
-              ? <img key={mainSrc} src={imgSrc(mainSrc)} onError={imgFallback(mainSrc)} alt={`${prod.name}, ${(VIEW_NAMES[active] || "view").toLowerCase()}`} width="800" height="1200" />
-              : <span className="pc__noimg">Photo coming soon</span>}
-            {imgs.length > 1 && (
-              <div className="pdp__toggle" role="group" aria-label="View">
-                {imgs.slice(0, 2).map((_, i) => (
-                  <button key={i} type="button" className={i === active ? "is-active" : ""} aria-pressed={i === active} onClick={() => setActive(i)}>{VIEW_NAMES[i]}</button>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Gallery: front and back side by side; swipeable on phones */}
+        <div className={`pdp__gallery pdp__gallery--${Math.min(imgs.length, 2) || 1}`}>
+          {imgs.length ? imgs.map((src, i) => (
+            <figure key={src + i} className="pdp__shot">
+              <img src={imgSrc(src)} onError={imgFallback(src)} alt={`${prod.name}, ${(VIEW_NAMES[i] || `view ${i + 1}`).toLowerCase()}`}
+                   loading={i === 0 ? "eager" : "lazy"} width="800" height="1200" />
+              {imgs.length > 1 && VIEW_NAMES[i] && <figcaption>{VIEW_NAMES[i]}</figcaption>}
+            </figure>
+          )) : <div className="pdp__shot"><span className="pc__noimg">Photo coming soon</span></div>}
         </div>
 
         {/* Details */}
         <div className="pdp__info">
-          {isNew(prod) && <span className="chip chip--coin">New drop</span>}
+          {isNew(prod) && <span className="chip">New drop</span>}
           <h1 className="h-display h-2 pdp__name">{prod.name}</h1>
           <p className="pdp__price">{rupees(prod.price)}</p>
           {prod.description && <p className="pdp__desc">{prod.description}</p>}
@@ -123,7 +106,7 @@ export default function ProductPage() {
               <div className="opt__row">
                 {prod.colors.map((c) => (
                   <button key={c} type="button" className={`opt__btn opt__btn--wide ${c === color ? "is-active" : ""}`} aria-pressed={c === color}
-                          onClick={() => setColor(c)}>{c}</button>
+                          onClick={() => setColor(c)}>{swatch(c) && <i className="dot" style={{ background: swatch(c) }} />}{c}</button>
                 ))}
               </div>
             </fieldset>
@@ -139,17 +122,30 @@ export default function ProductPage() {
           </fieldset>
 
           <div className="pdp__cta">
-            <button type="button" className="btn btn--coin btn--lg btn--block" onClick={openPreorder}>
-              <span className="pad pad--a">A</span>Pre-order for {rupees(Number(prod.price) * qty)}
+            <button type="button" className="btn btn--solid btn--lg btn--block" onClick={openPreorder}>
+              Pre-order for {rupees(Number(prod.price) * qty)}
             </button>
             <p className="tiny muted">{user ? "No payment is taken now." : "You’ll be asked to sign in first. No payment is taken now."}</p>
           </div>
 
-          <ul className="pdp__facts">
-            {!sameColl(collection, "Accessories") && <li>Oversized, dropped-shoulder fit</li>}
-            {imgs.length > 1 && <li>The main print is on the back. Switch to the Back view to see it.</li>}
-            <li>Track every pre-order under My pre-orders</li>
-          </ul>
+          <div className="pdp__acc">
+            {!sameColl(collection, "Accessories") && (
+              <details open>
+                <summary>Fit</summary>
+                <p>Oversized, with dropped shoulders.</p>
+              </details>
+            )}
+            {imgs.length > 1 && (
+              <details>
+                <summary>Print</summary>
+                <p>A small mark on the front. The main artwork is on the back.</p>
+              </details>
+            )}
+            <details>
+              <summary>Pre-order</summary>
+              <p>Confirming saves the pre-order to your account. No payment is taken on this site, and its status shows under My pre-orders.</p>
+            </details>
+          </div>
         </div>
       </div>
 
