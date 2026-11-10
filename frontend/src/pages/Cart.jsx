@@ -1,45 +1,76 @@
-import React, { useEffect, useState } from 'react';
-import api from '../api.js';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api, { rupees, errorText } from '../api.js';
+import Breadcrumbs from '../components/Breadcrumbs.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Cart() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [state, setState] = useState('loading'); // loading | ready | error
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    api.get('/api/preorders/mine')
-      .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setOrders([]));
-  }, []);
+  const load = useCallback(() => {
+    if (!user) return;
+    setState('loading');
+    api.get('/api/preorders/mine', { timeout: 30000 })
+      .then((res) => { setOrders(Array.isArray(res.data) ? res.data : []); setState('ready'); })
+      .catch((e) => { setError(errorText(e, 'Your pre-orders could not be loaded.')); setState('error'); });
+  }, [user]);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="page-wrap">
-      <div className="page-head">
-        <h1>My Pre-Orders</h1>
-        <nav className="crumbs">
-          <Link to="/">Home</Link> <span>›</span> <span>Pre-Orders</span>
-        </nav>
-      </div>
+    <main className="page page--mid container">
+      <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'My pre-orders' }]} />
+      <header className="page__head"><h1 className="h-display h-1">My pre-orders</h1></header>
 
-      <div className="table">
-        <div className="tr th">
-          <div>Product</div><div>Qty</div><div>Price</div><div>Date</div><div>Status</div>
-        </div>
-
-        {orders.map(o => (
-          <div key={o._id} className="tr">
-            <div>
-              <div className="t-strong">{o.name}</div>
-              <div className="tiny muted">{o.size} • {o.color}</div>
-            </div>
-            <div>{o.qty}</div>
-            <div>₹{o.price}</div>
-            <div>{new Date(o.createdAt).toLocaleDateString()}</div>
-            <div><span className={`badge ${o.status}`}>{o.status}</span></div>
+      {!user && (
+        <div className="empty">
+          <h2 className="h-display h-3">Sign in to see your pre-orders</h2>
+          <p className="muted">Pre-orders are saved to your account.</p>
+          <div className="row-actions">
+            <Link className="btn btn--coin" to="/login?next=%2Fcart"><span className="pad pad--a">A</span>Sign in</Link>
+            <Link className="btn btn--line-dark" to="/signup">Create account</Link>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {orders.length === 0 && <p className="muted" style={{ padding: '12px' }}>No pre-orders yet.</p>}
-    </div>
+      {user && state === 'loading' && <div className="orders" aria-busy="true"><div className="order sk-block" /><div className="order sk-block" /></div>}
+
+      {user && state === 'error' && (
+        <div className="empty">
+          <h2 className="h-display h-3">Couldn’t load your pre-orders</h2>
+          <p className="muted">{error}</p>
+          <button type="button" className="btn btn--coin" onClick={load}>Try again</button>
+        </div>
+      )}
+
+      {user && state === 'ready' && orders.length === 0 && (
+        <div className="empty">
+          <h2 className="h-display h-3">No pre-orders yet</h2>
+          <p className="muted">Pick a print and it will show up here with its status.</p>
+          <Link className="btn btn--coin" to="/collections/New"><span className="pad pad--a">A</span>See new drops</Link>
+        </div>
+      )}
+
+      {user && state === 'ready' && orders.length > 0 && (
+        <ul className="orders">
+          {orders.map((o) => (
+            <li key={o._id} className="order">
+              <div className="order__main">
+                <Link className="order__name" to={`/product/${encodeURIComponent(o.sku)}`}>{o.name}</Link>
+                <p className="muted">{[o.size && `Size ${o.size}`, o.color, `Qty ${o.qty}`].filter(Boolean).join(', ')}</p>
+              </div>
+              <div className="order__meta">
+                <span className="order__price">{rupees(Number(o.price) * Number(o.qty || 1))}</span>
+                <span className="muted tiny">{new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+              <span className={`badge badge--${o.status}`}>{o.status}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   );
 }

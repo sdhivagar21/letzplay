@@ -1,121 +1,105 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
-import api from '../api.js';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import Hero from '../components/Hero.jsx';
+import ProductCard, { CardSkeletons } from '../components/ProductCard.jsx';
+import { useProducts, productsIn, imagesOf, imgSrc, imgFallback, idOf, COLLECTIONS } from '../api.js';
 
-// Helpers for "New" & ordering
-const NEW_DAYS = 45;
-const isNew = (p) =>
-  (Array.isArray(p.tags) && p.tags.includes('new')) ||
-  (p.releasedAt && (Date.now() - new Date(p.releasedAt).getTime()) < NEW_DAYS * 864e5);
-
-const byPriority = (a, b) =>
-  (Number(b.priority || 0) - Number(a.priority || 0)) ||
-  (new Date(b.releasedAt || b.createdAt || 0) - new Date(a.releasedAt || a.createdAt || 0));
+const CLASS_COPY = {
+  'Oversized T-Shirts': { label: 'Oversized tees', blurb: 'Boxy, dropped shoulders, print on the back.' },
+  Hoodies: { label: 'Hoodies', blurb: 'Heavy fleece with chest and back prints.' },
+  Accessories: { label: 'Accessories', blurb: 'Hats to finish the fit.' },
+};
 
 export default function Home() {
-  const [products, setProducts] = useState([]);
-  const videoRef = useRef(null);
+  const { products, loading } = useProducts();
 
-  useEffect(() => {
-    api.get('/api/products', { params: { _ts: Date.now() } })
-      .then(res => setProducts(Array.isArray(res.data) ? res.data : []))
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      const p = videoRef.current.play?.();
-      if (p && typeof p.then === 'function') p.catch(() => {});
-    }
-  }, []);
-
-  const collections = useMemo(() => {
-    const newItems = [...products].filter(isNew).sort(byPriority).slice(0, 12);
-    const pick = (name) =>
-      products.filter((p) => p.collection === name).sort(byPriority).slice(0, 12);
-    return {
-      New: newItems,
-      'Oversized T-Shirts': pick('Oversized T-Shirts'),
-      Hoodies: pick('Hoodies'),
-      Accessories: pick('Accessories'),
-    };
-  }, [products]);
-
-  const Card = ({ p }) => {
-    const list = p.images || p.imageUrls || p.ImageURLs || [];
-    const img1 = list[0] || '/images/placeholder-1.jpg';
-    const img2 = list[1] || img1;
-    return (
-      <Link
-        to={`/product/${encodeURIComponent(p.sku || p.ProductID || p.productId || p._id)}`}
-        className="sk-card"
-        aria-label={p.name}
-      >
-        <div className="sk-img-wrap">
-          <img src={img1} alt={p.name} className="sk-img primary" loading="lazy" />
-          <img src={img2} alt="" className="sk-img secondary" loading="lazy" />
-        </div>
-        <div className="sk-meta">
-          <div className="sk-name">{p.name}</div>
-          <div className="sk-price">₹{p.price}</div>
-        </div>
-      </Link>
-    );
-  };
+  const fresh = useMemo(() => productsIn(products, 'New').slice(0, 8), [products]);
+  const best = useMemo(() => productsIn(products, 'Best Sellers').slice(0, 4), [products]);
+  const classes = useMemo(
+    () => COLLECTIONS.map((name) => {
+      const items = productsIn(products, name);
+      return { name, count: items.length, cover: imagesOf(items[0])[0] };
+    }).filter((c) => c.count > 0),
+    [products]
+  );
+  // The print wall shows back prints only.
+  const wall = useMemo(
+    () => products.filter((p) => imagesOf(p)[1]).slice(0, 24).map((p) => ({ id: idOf(p), name: p.name, src: imagesOf(p)[1] })),
+    [products]
+  );
 
   return (
-    <>
-      {/* HERO with video */}
-      <section className="hero-skims">
-        <video
-          ref={videoRef}
-          className="hero-video"
-          autoPlay
-          loop
-          muted
-          playsInline
-          poster="/images/hero-mobile.jpg"
-        >
-          <source src="/videos/hero.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+    <main>
+      <Hero />
 
-        <div className="hero-overlay">
-          <h1>Effortless Essentials</h1>
-          <p>Premium tees & hoodies for every day.</p>
-          <div className="hero-actions">
-            <Link className="btn-solid" to="/collections/Oversized%20T-Shirts">Shop T-Shirts</Link>
-            <Link className="btn-outline" to="/collections/Hoodies">Shop Hoodies</Link>
+      <section className="section container">
+        <div className="section__head">
+          <h2 className="h-display h-2">Fresh drops</h2>
+          <Link to="/collections/New" className="link">See all new</Link>
+        </div>
+        <div className="grid">
+          {loading ? <CardSkeletons count={4} /> : fresh.map((p, i) => <ProductCard key={idOf(p)} product={p} eager={i < 4} />)}
+        </div>
+      </section>
+
+      {classes.length > 0 && (
+        <section className="section container">
+          <div className="section__head">
+            <h2 className="h-display h-2">Choose your class</h2>
           </div>
+          <div className={`classes classes--${classes.length}`}>
+            {classes.map((c) => (
+              <Link key={c.name} to={`/collections/${encodeURIComponent(c.name)}`} className="class-tile">
+                {c.cover && <img src={imgSrc(c.cover)} onError={imgFallback(c.cover)} alt="" loading="lazy" width="800" height="1200" />}
+                <span className="class-tile__body">
+                  <span className="h-display class-tile__name">{CLASS_COPY[c.name]?.label || c.name}</span>
+                  <span className="class-tile__blurb">{CLASS_COPY[c.name]?.blurb}</span>
+                  <span className="class-tile__count">{c.count} {c.count === 1 ? 'style' : 'styles'}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {wall.length > 3 && (
+        <section className="wall">
+          <div className="container section__head">
+            <h2 className="h-display h-2">The print wall</h2>
+            <p className="wall__note">Back prints from the shop. Scroll sideways and open any of them.</p>
+          </div>
+          <div className="wall__strip" tabIndex={0} aria-label="Back prints">
+            {wall.map((w) => (
+              <Link key={w.id} to={`/product/${encodeURIComponent(w.id)}`} className="wall__item" aria-label={w.name}>
+                <img src={imgSrc(w.src)} onError={imgFallback(w.src)} alt="" loading="lazy" width="800" height="1200" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {best.length > 0 && (
+        <section className="section container">
+          <div className="section__head">
+            <h2 className="h-display h-2">Best sellers</h2>
+            <Link to="/collections/Best%20Sellers" className="link">See all best sellers</Link>
+          </div>
+          <div className="grid">
+            {best.map((p) => <ProductCard key={idOf(p)} product={p} />)}
+          </div>
+        </section>
+      )}
+
+      <section className="section container">
+        <div className="how">
+          <h2 className="h-display h-2">How pre-order works</h2>
+          <ol className="how__steps">
+            <li><span className="how__n">1</span><div><h3>Pick your print</h3><p>Flip any card to see the back, then choose your size and colour.</p></div></li>
+            <li><span className="how__n">2</span><div><h3>Place the pre-order</h3><p>Sign in and confirm. No payment is taken on this site.</p></div></li>
+            <li><span className="how__n">3</span><div><h3>Track the status</h3><p>Every pre-order and its status is listed under My pre-orders.</p></div></li>
+          </ol>
         </div>
       </section>
-
-      {/* New */}
-      <section className="sk-section">
-        <div className="sk-section-head">
-          <h2>New</h2>
-          <Link to="/collections/New" className="link">View all</Link>
-        </div>
-        <div className="sk-grid">
-          {(collections['New'] || []).map(p => <Card key={(p.sku || p._id)} p={p} />)}
-        </div>
-      </section>
-
-      {/* Collections */}
-      {(['Oversized T-Shirts', 'Hoodies', 'Accessories']).map(title => {
-        const items = collections[title] || [];
-        return items.length > 0 ? (
-          <section className="sk-section" key={title}>
-            <div className="sk-section-head">
-              <h2>{title}</h2>
-              <Link to={`/collections/${encodeURIComponent(title)}`} className="link">View all</Link>
-            </div>
-            <div className="sk-grid">
-              {items.map(p => <Card key={(p.sku || p._id)} p={p} />)}
-            </div>
-          </section>
-        ) : null;
-      })}
-    </>
+    </main>
   );
 }

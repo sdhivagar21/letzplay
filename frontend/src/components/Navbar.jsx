@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+
+const LINKS = [
+  { to: '/collections/New', label: 'New' },
+  { to: '/collections/Best%20Sellers', label: 'Best sellers' },
+  { to: '/collections/Oversized%20T-Shirts', label: 'Oversized tees' },
+  { to: '/collections/Hoodies', label: 'Hoodies' },
+  { to: '/collections/Accessories', label: 'Accessories' },
+];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+
+  // Close the menu on navigation and lock page scroll while it is open.
+  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
 
   const handleLogout = () => {
     logout();
@@ -13,54 +29,63 @@ export default function Navbar() {
     setOpen(false);
   };
 
+  const firstName = (user?.name || '').trim().split(' ')[0];
+
   return (
-    <header className={`nav ${open ? 'open' : ''}`}>
+    <header className={`nav ${open ? 'is-open' : ''}`}>
       <div className="nav__bar container">
-        <Link to="/" className="nav__logo" aria-label="LET'Z PLAY" onClick={() => setOpen(false)}>
-          {/* Falls back to text if image is missing */}
-          <img src="/images/logo.png" alt="LET'Z PLAY" onError={(e)=>{e.currentTarget.outerHTML="<strong>LET'Z PLAY</strong>";}} />
+        <Link to="/" className="nav__logo" aria-label="LET'Z PLAY home">
+          <img src="/images/logo.webp" alt="" width="44" height="44"
+               onError={(e) => { if (!e.currentTarget.dataset.f) { e.currentTarget.dataset.f = 1; e.currentTarget.src = '/images/logo.png'; } }} />
+          <span className="nav__word">LET’Z PLAY</span>
         </Link>
 
-        <nav className="nav__links" aria-label="Primary">
-          <NavLink to="/collections/New"            className={({isActive}) => `nav__link ${isActive ? 'is-active' : ''}`}>New</NavLink>
-          <NavLink to="/collections/Best%20Sellers" className={({isActive}) => `nav__link ${isActive ? 'is-active' : ''}`}>Best Sellers</NavLink>
-          <NavLink to="/collections/Oversized%20T-Shirts" className={({isActive}) => `nav__link ${isActive ? 'is-active' : ''}`}>Oversized T-Shirts</NavLink>
-          <NavLink to="/collections/Hoodies"        className={({isActive}) => `nav__link ${isActive ? 'is-active' : ''}`}>Hoodies</NavLink>
-          <NavLink to="/collections/Accessories"    className={({isActive}) => `nav__link ${isActive ? 'is-active' : ''}`}>Accessories</NavLink>
+        <nav className="nav__links" aria-label="Shop">
+          {LINKS.map((l) => (
+            <NavLink key={l.to} to={l.to} className={({ isActive }) => `nav__link ${isActive ? 'is-active' : ''}`}>{l.label}</NavLink>
+          ))}
         </nav>
 
         <div className="nav__actions">
           {!user ? (
-            <>
-              <Link className="btn-link" to="/login">Sign In</Link>
-              <Link className="btn-link" to="/signup">Sign Up</Link>
-            </>
+            <Link className="nav__text nav__desk" to="/login">Sign in</Link>
           ) : (
             <>
-              <Link className="btn-link" to="/profile">My Profile</Link>
-              {user.role === 'admin' && <Link className="btn-link" to="/admin">Admin</Link>}
-              <button className="btn-link" onClick={handleLogout}>Log Out</button>
+              {user.role === 'admin' && <Link className="nav__text nav__desk" to="/admin">Admin</Link>}
+              <Link className="nav__text nav__desk" to="/profile">{firstName ? `Hi, ${firstName}` : 'Profile'}</Link>
             </>
           )}
-          <Link className="nav__cart" to="/cart" aria-label="Cart" onClick={() => setOpen(false)}>🛒</Link>
-
-          {/* Burger toggles state, not a checkbox sibling */}
-          <button
-            type="button"
-            className="nav__burger"
-            aria-label="Menu"
-            onClick={() => setOpen(v => !v)}
-          />
+          <Link className="nav__pill" to="/cart">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M9 7a3 3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            <span>Pre-orders</span>
+          </Link>
+          <button type="button" className="nav__burger" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+            <span /><span />
+          </button>
         </div>
       </div>
 
-      {/* Mobile drawer */}
-      <div className="nav__drawer container">
-        <NavLink to="/collections/New"                 className="nav__drawer-link" onClick={()=>setOpen(false)}>New</NavLink>
-        <NavLink to="/collections/Best%20Sellers"      className="nav__drawer-link" onClick={()=>setOpen(false)}>Best Sellers</NavLink>
-        <NavLink to="/collections/Oversized%20T-Shirts"className="nav__drawer-link" onClick={()=>setOpen(false)}>Oversized T-Shirts</NavLink>
-        <NavLink to="/collections/Hoodies"             className="nav__drawer-link" onClick={()=>setOpen(false)}>Hoodies</NavLink>
-        <NavLink to="/collections/Accessories"         className="nav__drawer-link" onClick={()=>setOpen(false)}>Accessories</NavLink>
+      {/* Mobile menu */}
+      <div className="nav__drawer" hidden={!open}>
+        <div className="container">
+          {LINKS.map((l) => (
+            <NavLink key={l.to} to={l.to} className="nav__drawer-link">{l.label}</NavLink>
+          ))}
+          <div className="nav__drawer-foot">
+            {!user ? (
+              <>
+                <Link className="btn btn--coin" to="/login">Sign in</Link>
+                <Link className="btn btn--line" to="/signup">Create account</Link>
+              </>
+            ) : (
+              <>
+                <Link className="btn btn--line" to="/profile">My profile</Link>
+                {user.role === 'admin' && <Link className="btn btn--line" to="/admin">Admin</Link>}
+                <button type="button" className="btn btn--line" onClick={handleLogout}>Log out</button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   );
