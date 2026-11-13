@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Hero from '../components/Hero.jsx';
+import ClothingRail from '../components/ClothingRail.jsx';
 import ProductCard, { CardSkeletons } from '../components/ProductCard.jsx';
 import { useProducts, productsIn, imagesOf, imgSrc, imgFallback, idOf, rupees, COLLECTIONS, Reveal } from '../api.js';
 
@@ -49,6 +50,8 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      <ClothingRail />
 
       {tiles.length > 0 && (
         <section className={`tiles tiles--${tiles.length}`} aria-label="Shop by category">
@@ -135,7 +138,7 @@ export default function Home() {
       )}
 
       <Reveal as="section" className="section">
-        <div className="how">
+        <div className="how" id="about">
           <h2 className="h-display h-2">How pre-order works</h2>
           <ol className="how__steps">
             <li><span className="how__n">1</span><h3>Pick your print</h3><p>Flip any product to see the back, then choose your size and colour.</p></li>

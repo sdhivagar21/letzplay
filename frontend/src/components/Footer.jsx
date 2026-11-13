@@ -7,7 +7,7 @@ export default function Footer() {
   const year = new Date().getFullYear();
   const { user } = useAuth();
   return (
-    <footer className="site-footer">
+    <footer className="site-footer" id="contact">
       <div className="footer__grid">
         <div className="footer__brand">
           <img src="/images/logo.webp" alt="LET'Z PLAY" width="88" height="88" loading="lazy" />
