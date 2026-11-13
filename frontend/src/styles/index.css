@@ -566,10 +566,10 @@ select.input { appearance: none; padding-right: 36px; background-image: url("dat
 .rail__item:focus-visible { outline: none; }
 .rail__item:focus-visible .hang { outline: 2px solid var(--ink); outline-offset: 4px; }
 .rail__item.is-lifted { opacity: 0; }
-.hang { position: absolute; inset: 0; display: block; pointer-events: auto; cursor: pointer; transform-origin: 50% 0; transform: perspective(2600px) rotateY(72deg); transition: transform var(--turn), opacity var(--turn); will-change: transform; }
-.rail__slot.is-active .hang { transform: perspective(2600px) rotateY(0deg); }
+.hang { position: absolute; inset: 0; display: block; pointer-events: auto; cursor: pointer; transform-origin: 50% 0; transform: perspective(1800px) rotateY(75deg); transition: transform var(--turn), opacity var(--turn); will-change: transform; }
+.rail__slot.is-active .hang { transform: perspective(1800px) rotateY(0deg); }
 .hanger { position: absolute; left: 22%; top: 0; width: 56%; height: var(--hang-h); overflow: visible; }
-.hang__tee { position: absolute; left: -12%; top: calc(var(--hang-h) * .62); width: 124%; height: calc(var(--tee) * 1.22); max-width: none; object-fit: contain; object-position: 50% 0; user-select: none; -webkit-user-drag: none; }
+.hang__tee { position: absolute; left: 0; top: calc(var(--hang-h) * .62); width: 100%; height: calc(var(--tee) * 1.25); max-width: none; object-fit: contain; object-position: 50% 0; user-select: none; -webkit-user-drag: none; }
 /* real side-view photo (optional): crossfades with the front while it turns */
 .hang__side { position: absolute; left: 50%; top: calc(var(--hang-h) * .62); height: calc(var(--tee) * 1.25); width: calc(var(--tee) * .3); margin-left: calc(var(--tee) * -.15); max-width: none; object-fit: contain; object-position: 50% 0; pointer-events: none; transition: opacity var(--turn); }
 .rail__item.has-side .hang { opacity: 0; }

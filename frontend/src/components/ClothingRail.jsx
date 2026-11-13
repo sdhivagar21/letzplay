@@ -217,11 +217,7 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
 export default function ClothingRail({ items = RAIL_ITEMS }) {
   const scrollMode = useMedia(SCROLL_QUERY);
   const reduced = useMedia(REDUCED_QUERY);
-  const [picked, setActive] = useState(null);
-  // Desktop: with no mouse on the rail, the middle tee faces the front so the
-  // section looks finished before anyone touches it.
-  const rest = Math.floor((items.length - 1) / 2);
-  const active = picked ?? (scrollMode ? null : rest);
+  const [active, setActive] = useState(null);
   const [detail, setDetail] = useState(null);   // index of the open tee, or null
   const trackRef = useRef(null);
   const itemRefs = useRef([]);
