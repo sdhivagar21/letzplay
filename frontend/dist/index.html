@@ -3,17 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LET'Z PLAY — Oversized anime tees and hoodies</title>
-    <meta name="description" content="Oversized tees and hoodies with anime and pop-culture back prints. Pick your print and pre-order in your size." />
-    <meta name="theme-color" content="#2D2A26" />
+    <title>LET'Z PLAY — Oversized tees, open for pre-order</title>
+    <meta name="description" content="Five oversized tees with loud back prints. Pick your design and size, leave your details, and we contact you when the drop is ready." />
+    <meta name="theme-color" content="#121318" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-BYaE6iWM.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BpDJVM-J.css">
+    <script type="module" crossorigin src="/assets/index-B8GDaRUv.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DlV1nqPt.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
+    <!-- Static copy of the pre-order form so Netlify Forms can find its fields at deploy time.
+         The real form is rendered by React (src/components/InterestForm.jsx). -->
+    <form name="preorder-interest" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="tel" name="phone" />
+      <input type="email" name="email" />
+      <input type="text" name="location" />
+      <textarea name="tees"></textarea>
+      <input type="text" name="bot-field" />
+    </form>
   </body>
 </html>

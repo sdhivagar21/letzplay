@@ -1,23 +1,9 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import Navbar from './components/Navbar.jsx';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Footer from './components/Footer.jsx';
 import Home from './pages/Home.jsx';
-import CollectionPage from './pages/CollectionPage.jsx';
-import ProductPage from './pages/ProductPage.jsx';
-import Cart from './pages/Cart.jsx';
-import Login from './pages/Login.jsx';
-import Signup from './pages/Signup.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
-import Profile from './pages/Profile.jsx';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-
-const AdminRoute = ({ children }) => {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login?next=%2Fadmin" replace />;
-  if (user.role !== 'admin') return <Navigate to="/" replace />;
-  return children;
-};
+import { PicksProvider } from './context/PicksContext.jsx';
 
 // Start every page at the top.
 const ScrollToTop = () => {
@@ -26,38 +12,37 @@ const ScrollToTop = () => {
   return null;
 };
 
-const NotFound = () => (
-  <main className="page page--narrow empty">
-    <p className="empty__code">404</p>
-    <h1 className="h-display h-2">This page doesn’t exist</h1>
-    <p className="muted">The link may be old, or the print may have been retired.</p>
-    <div className="row-actions">
-      <Link className="btn btn--solid" to="/">Back to home</Link>
-      <Link className="btn btn--text" to="/collections/All">Browse everything</Link>
-    </div>
-  </main>
-);
+// Tells the visitor counter about this visit: once per browser per day,
+// and never from the admin page or the local dev server.
+const CountVisit = () => {
+  useEffect(() => {
+    if (import.meta.env.DEV || window.location.pathname.startsWith('/admin')) return;
+    const day = new Date().toISOString().slice(0, 10);
+    try {
+      if (localStorage.getItem('lp-visit') === day) return;
+      localStorage.setItem('lp-visit', day);
+    } catch { /* storage blocked: count the visit anyway */ }
+    fetch('/.netlify/functions/visit', { method: 'POST', keepalive: true }).catch(() => {});
+  }, []);
+  return null;
+};
 
+// The site is one page. Old links (collections, products, sign in, cart)
+// land on the home page.
 export default function App() {
   return (
-    <AuthProvider>
+    <PicksProvider>
       <ScrollToTop />
-      <a className="skip-link" href="#main">Skip to content</a>
-      <Navbar />
-      <div id="main" className="app-main">
+      <CountVisit />
+      <a className="skip-link" href="#designs">Skip to the tees</a>
+      <div className="app-main">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/collections/:name" element={<CollectionPage />} />
-          <Route path="/product/:sku" element={<ProductPage />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
       <Footer />
-    </AuthProvider>
+    </PicksProvider>
   );
 }

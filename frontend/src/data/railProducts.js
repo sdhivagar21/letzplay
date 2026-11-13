@@ -1,30 +1,28 @@
 /* ------------------------------------------------------------------
-   Clothing rail — the tees that hang on the home page rail.
-   Edit names, prices and sizes right here.
+   The drop — the only tees on the site.
+   Edit names, colours and sizes right here.
 
    Images live in public/images/rail/ as transparent PNGs (each has a
    small .webp twin that is served first).
-
-   The pre-order button sends `sku` to the API, so every sku below must
-   also exist in the products database (see products-sample.csv).
    ------------------------------------------------------------------ */
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
-const design = (sku, name, price, color, slug) => ({
-  sku, name, price,
-  collection: 'Oversized T-Shirts',
+const design = (sku, name, color, slug, accent) => ({
+  sku, name, color, accent,              // accent: glow colour behind the tee
   sizes: SIZES,
-  colors: [color],
-  images: [`/images/rail/${slug}-front.png`, `/images/rail/${slug}-back.png`],
+  images: [`/images/rail/${slug}-front.v2.png`, `/images/rail/${slug}-back.v2.png`],
 });
 
 export const RAIL_DESIGNS = {
-  doom: design('rail-doom-1', 'Doom Oversized T-Shirt', 849, 'Black', 'doom'),
-  nothing: design('rail-nothing-1', 'Nothing Happened Oversized T-Shirt', 849, 'Cream', 'nothing'),
-  thalapathy: design('rail-thalapathy-1', 'Thalapathy Oversized T-Shirt', 849, 'Black', 'thalapathy'),
-  gta: design('rail-gta-1', 'Grand Theft Auto Oversized T-Shirt', 849, 'Black', 'gta'),
-  virat: design('rail-virat-1', 'Virat 18 Oversized T-Shirt', 849, 'Navy', 'virat'),
+  thalapathy: design('thalapathy', 'Thalapathy', 'Washed black', 'thalapathy', '#e0373a'),
+  doom: design('doom', 'Doom', 'Washed black', 'doom', '#63c24a'),
+  nothing: design('nothing-happened', 'Nothing Happened', 'Cream', 'nothing', '#e8d9b8'),
+  gta: design('grand-theft-auto', 'Grand Theft Auto', 'Washed black', 'gta', '#ff5fa8'),
+  virat: design('virat-18', 'Virat 18', 'Navy', 'virat', '#e3b53a'),
 };
+
+// The five designs, in the order they are listed under the rail.
+export const DESIGNS = Object.values(RAIL_DESIGNS);
 
 // One hanger on the rail.
 //   front: the picture shown when the tee faces you (transparent PNG)
@@ -37,8 +35,7 @@ const hanger = (key, view, side = null) => {
     id: `${product.sku}-${view.toLowerCase()}`,
     product,
     view,                                   // "Front" or "Back"
-    name: product.name.replace(/ Oversized T-Shirt$/, ''),
-    price: product.price,
+    name: product.name,
     sizes: product.sizes,
     front: product.images[view === 'Back' ? 1 : 0],
     side,
@@ -47,14 +44,14 @@ const hanger = (key, view, side = null) => {
 
 // Left to right along the rail. Reorder, remove or add lines freely.
 export const RAIL_ITEMS = [
-  hanger('doom', 'Back'),
-  hanger('nothing', 'Front'),
-  hanger('gta', 'Back'),
-  hanger('virat', 'Front'),
   hanger('thalapathy', 'Back'),
   hanger('doom', 'Front'),
   hanger('nothing', 'Back'),
   hanger('gta', 'Front'),
   hanger('virat', 'Back'),
   hanger('thalapathy', 'Front'),
+  hanger('doom', 'Back'),
+  hanger('nothing', 'Front'),
+  hanger('gta', 'Back'),
+  hanger('virat', 'Front'),
 ];

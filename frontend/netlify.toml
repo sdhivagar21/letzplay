@@ -1,0 +1,10 @@
+# Netlify settings for the LET'Z PLAY site.
+# The site is published from dist/ and has two small functions
+# (visitor counter + admin stats) in netlify/functions/.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import PreorderModal from './PreorderModal.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { imgSrc, imgFallback, rupees } from '../api.js';
+import { usePicks, goTo } from '../context/PicksContext.jsx';
+import { imgSrc, imgFallback } from '../api.js';
 import { RAIL_ITEMS } from '../data/railProducts.js';
 
 const STRIP = ['New drops weekly', 'Pre-order your size', 'Anime oversized tees'];
@@ -52,21 +50,18 @@ const TeeImg = ({ src, className, eager = false }) => (
 
 /* ------------------------------------------------------------------
    Detail view: the clicked tee flies off the rail to the centre of the
-   screen (FLIP), with name, price, sizes and the pre-order button.
+   screen (FLIP), with its name, a size picker and the pick button.
    ------------------------------------------------------------------ */
 function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
+  const { picks, pick, unpick } = usePicks();
   const [shown, setShown] = useState(false);
   const [dir, setDir] = useState(0);
   const [size, setSize] = useState('');
   const [needSize, setNeedSize] = useState(false);
-  const [showPre, setShowPre] = useState(false);
   const boxRef = useRef(null);
   const hangRef = useRef(null);
   const closing = useRef(false);
   const touch = useRef(null);
-  const { user } = useAuth();
-  const nav = useNavigate();
-  const loc = useLocation();
 
   const item = items[index];
   const total = items.length;
@@ -98,13 +93,13 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
   }, []);
 
   // Close: the same flight in reverse, then unmount.
-  const close = useCallback(() => {
+  const close = useCallback((then) => {
     if (closing.current) return;
     closing.current = true;
     const back = overRail();
     if (back && hangRef.current) hangRef.current.style.transform = back;
     setShown(false);
-    setTimeout(onClosed, reduced ? 180 : 520);
+    setTimeout(() => onClosed(typeof then === 'string' ? then : null), reduced ? 180 : 520);
   }, [overRail, onClosed, reduced]);
 
   const step = useCallback((d) => {
@@ -112,12 +107,14 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
     setIndex((i) => (i + d + total) % total);
   }, [setIndex, total]);
 
-  // The size picker starts empty for every tee.
-  useEffect(() => { setSize(''); setNeedSize(false); }, [item.product.sku]);
+  // The size picker shows the size already picked for this design, if any.
+  const sku = item.product.sku;
+  const picked = picks[sku] || '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setSize(picks[sku] || ''); setNeedSize(false); }, [sku]);
 
   useEffect(() => {
     const onKey = (e) => {
-      if (showPre) return;                       // the pre-order modal handles its own keys
       if (e.key === 'Escape') close();
       else if (e.key === 'ArrowRight') step(1);
       else if (e.key === 'ArrowLeft') step(-1);
@@ -132,13 +129,13 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [close, step, showPre]);
+  }, [close, step]);
 
-  // Lock page scroll (again after the pre-order modal releases it).
+  // Lock page scroll while the detail view is open.
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
-  }, [showPre]);
+  }, []);
 
   const onTouchStart = (e) => { const t = e.touches[0]; touch.current = { x: t.clientX, y: t.clientY }; };
   const onTouchEnd = (e) => {
@@ -150,25 +147,24 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
     if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(t.clientY - s.y) * 1.4) step(dx < 0 ? 1 : -1);
   };
 
-  // Same steps as the product page: size, then sign in, then confirm.
-  const preorder = () => {
+  // Picking needs a size; nothing else. Details are asked once, in the form.
+  const add = () => {
     if (!size) { setNeedSize(true); return; }
-    if (!user) { nav(`/login?next=${encodeURIComponent(loc.pathname)}`); return; }
-    setShowPre(true);
+    pick(sku, size);
   };
+  const isPicked = !!picked && picked === size;
 
   return (
     <div className={`rdv ${shown ? 'is-shown' : ''}`} role="dialog" aria-modal="true" aria-label={`${item.name}, ${item.view.toLowerCase()} view`}
          tabIndex={-1} ref={boxRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <div className="rdv__veil" onClick={close} />
-      <button type="button" className="rdv__close" onClick={close}>Close</button>
+      <div className="rdv__veil" onClick={() => close()} />
+      <button type="button" className="rdv__close" onClick={() => close()}>Close</button>
 
       <div className="rdv__body">
         <div className="rdv__meta">
           <p className="rdv__count" aria-live="polite">{pad2(index + 1)} / {pad2(total)}</p>
           <h3 className="rdv__name">{item.name}</h3>
-          <p className="rdv__view">{item.view} print · Oversized tee</p>
-          <p className="rdv__price">{rupees(item.price)}</p>
+          <p className="rdv__view">{item.view}</p>
         </div>
 
         <div className="rdv__stage">
@@ -197,14 +193,19 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
             </div>
             {needSize && !size && <p className="rdv__error" role="alert">Choose a size to continue.</p>}
           </fieldset>
-          <button type="button" className="rail-pill rail-pill--solid" onClick={preorder}>Pre-order</button>
-          <p className="rdv__note">{user ? 'No payment is taken now.' : 'You’ll be asked to sign in first. No payment is taken now.'}</p>
+          {isPicked ? (
+            <>
+              <p className="rdv__added" role="status">Added to your picks · size {picked}</p>
+              <button type="button" className="rail-pill rail-pill--solid" onClick={() => close('preorder')}>Finish pre-order</button>
+              <button type="button" className="rdv__link" onClick={() => unpick(sku)}>Remove this tee</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="rail-pill rail-pill--solid" onClick={add}>{picked ? 'Change size' : 'Add to my picks'}</button>
+            </>
+          )}
         </div>
       </div>
-
-      {showPre && (
-        <PreorderModal product={item.product} initial={{ size, qty: 1 }} onClose={() => setShowPre(false)} />
-      )}
     </div>
   );
 }
@@ -215,6 +216,7 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
    Phones:  the rail swipes sideways and the centre tee faces you.
    ------------------------------------------------------------------ */
 export default function ClothingRail({ items = RAIL_ITEMS }) {
+  const { count } = usePicks();
   const scrollMode = useMedia(SCROLL_QUERY);
   const reduced = useMedia(REDUCED_QUERY);
   const [active, setActive] = useState(null);
@@ -230,10 +232,10 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
     track.scrollTo({ left: i * slotWidth(), behavior: smooth && !reduced ? 'smooth' : 'auto' });
   }, [reduced]);
 
-  // Swipe mode: start a couple of tees in so both sides of the rail are full.
+  // Swipe mode: start on the first tee of the rail.
   useLayoutEffect(() => {
     if (!scrollMode) { setActive(null); return; }
-    const start = Math.min(2, items.length - 1);
+    const start = 0;
     centreOn(start, false);
     setActive(start);
   }, [scrollMode, items.length, centreOn]);
@@ -286,9 +288,10 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
     showDetail(i);
   }, [scrollMode, centreOn]);
 
-  const onClosed = useCallback(() => {
+  const onClosed = useCallback((then) => {
     const el = itemRefs.current[detailRef.current];
     showDetail(null);
+    if (then) { setTimeout(() => goTo(then), 60); return; }
     el?.focus({ preventScroll: true });
     // back on the rail: stay facing front only if the mouse is still on it
     if (!scrollMode && el && !el.matches(':hover') && !el.matches(':focus-visible')) setActive(null);
@@ -298,19 +301,26 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
   const isOpen = detail != null;
 
   return (
-    <section className={`rail ${scrollMode ? 'rail--swipe' : 'rail--hover'} ${isOpen ? 'is-open' : ''}`} aria-label="This week’s drop on the rail">
+    <section className={`rail ${scrollMode ? 'rail--swipe' : 'rail--hover'} ${isOpen ? 'is-open' : ''}`} aria-label="The drop on the rail">
       <RailDefs />
+      {/* studio backdrop: spotlight, drifting colour, floor */}
+      <div className="rail__bg" aria-hidden="true">
+        <span className="rail__orb rail__orb--a" />
+        <span className="rail__orb rail__orb--b" />
+        <span className="rail__orb rail__orb--c" />
+        <span className="rail__floor" />
+      </div>
       <div className="rail__inner" aria-hidden={isOpen || undefined}>
         <div className="rail__top">
-          <a href="#about">About</a>
+          <a href="#designs">The drop</a>
           <span className="rail__logo">
             <img src="/images/logo.webp" alt="" width="34" height="34" loading="lazy"
                  onError={(e) => { if (!e.currentTarget.dataset.f) { e.currentTarget.dataset.f = 1; e.currentTarget.src = '/images/logo.png'; } }} />
             <span>LET’Z PLAY</span>
           </span>
-          <a href="#contact">Contact</a>
+          <a href="#preorder">Pre-order</a>
         </div>
-        <h2 className="sr-only">This week’s drop</h2>
+        <h1 className="sr-only">LET’Z PLAY oversized tees. Pick your design and pre-order.</h1>
 
         <div className="rail__stage">
           <div className="rail__bar" aria-hidden="true" />
@@ -319,10 +329,10 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
               const side = active == null ? 0 : Math.sign(i - active);
               const on = i === active;
               return (
-                <li className={`rail__slot ${on ? 'is-active' : ''}`} key={it.id} style={{ '--dir': side }}>
+                <li className={`rail__slot ${on ? 'is-active' : ''}`} key={it.id} style={{ '--dir': side, '--i': i }}>
                   <button type="button" ref={(el) => { itemRefs.current[i] = el; }}
                           className={`rail__item ${it.side ? 'has-side' : ''} ${detail === i ? 'is-lifted' : ''}`}
-                          aria-label={`${it.name}, ${it.view.toLowerCase()} view, ${rupees(it.price)}. Open details`}
+                          aria-label={`${it.name}, ${it.view.toLowerCase()} view. Open details`}
                           tabIndex={isOpen ? -1 : 0}
                           onClick={() => onPick(i)}
                           onFocus={(e) => { if (!scrollMode && e.currentTarget.matches(':focus-visible')) setActive(i); }}
@@ -341,12 +351,12 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
 
         <p className="rail__caption" aria-hidden="true">
           {shown
-            ? <span key={shown.id}>{shown.name} <i>{shown.view}</i> <b>{rupees(shown.price)}</b></span>
-            : <span key="hint" className="rail__hint">Hover a tee to turn it round</span>}
+            ? <span key={shown.id}>{shown.name} <i>{shown.view}</i></span>
+            : null}
         </p>
 
         <div className="rail__cta">
-          <button type="button" className="rail-pill" tabIndex={isOpen ? -1 : 0} onClick={() => open(active ?? 0)}>Pre-order now</button>
+          <button type="button" className="rail-pill" tabIndex={isOpen ? -1 : 0} onClick={() => goTo(count ? 'preorder' : 'designs')}>Pre-order now</button>
         </div>
       </div>
 
