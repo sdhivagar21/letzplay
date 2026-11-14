@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePicks, goTo } from '../context/PicksContext.jsx';
-import { imgSrc, imgFallback } from '../api.js';
+import { imgSrc, imgFallback, teeSrcSet } from '../img.js';
 import { RAIL_ITEMS } from '../data/railProducts.js';
 
 const STRIP = ['New drops weekly', 'Pre-order your size', 'Anime oversized tees'];
@@ -43,10 +43,13 @@ const Hanger = () => (
   </svg>
 );
 
-const TeeImg = ({ src, className, eager = false }) => (
-  <img className={className} src={imgSrc(src)} onError={imgFallback(src)} alt="" draggable="false"
+// `sizes` lets phones take the 480px picture; without it the full one is used.
+const TeeImg = ({ src, className, eager = false, sizes }) => (
+  <img className={className} src={imgSrc(src)} srcSet={sizes ? teeSrcSet(src) : undefined} sizes={sizes}
+       onError={imgFallback(src)} alt="" draggable="false"
        loading={eager ? 'eager' : 'lazy'} decoding="async" width="760" height="950" />
 );
+const RAIL_SIZES = '(max-width: 820px) 60vw, 26vw';
 
 /* ------------------------------------------------------------------
    Detail view: the clicked tee flies off the rail to the centre of the
@@ -222,6 +225,8 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
   const [active, setActive] = useState(null);
   const [detail, setDetail] = useState(null);   // index of the open tee, or null
   const trackRef = useRef(null);
+  const sectionRef = useRef(null);
+  const [away, setAway] = useState(false);       // scrolled out of view: looping animations pause
   const itemRefs = useRef([]);
   const frame = useRef(0);
 
@@ -252,6 +257,14 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
     });
   };
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => setAway(!e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   // Hover mode: the rail is split into one fixed zone per hanger, so moving
   // the mouse along it turns the tees one by one (the zones never move,
@@ -301,7 +314,7 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
   const isOpen = detail != null;
 
   return (
-    <section className={`rail ${scrollMode ? 'rail--swipe' : 'rail--hover'} ${isOpen ? 'is-open' : ''}`} aria-label="The drop on the rail">
+    <section ref={sectionRef} className={`rail ${scrollMode ? 'rail--swipe' : 'rail--hover'} ${isOpen ? 'is-open' : ''} ${away && !isOpen ? 'is-away' : ''}`} aria-label="The drop on the rail">
       <RailDefs />
       {/* studio backdrop: spotlight, drifting colour, floor */}
       <div className="rail__bg" aria-hidden="true">
@@ -339,7 +352,7 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
                           onBlur={() => { if (!scrollMode) setActive((a) => (a === i ? null : a)); }}>
                     <span className="hang">
                       <Hanger />
-                      <TeeImg className="hang__tee" src={it.front} />
+                      <TeeImg className="hang__tee" src={it.front} sizes={RAIL_SIZES} eager={i < 3} />
                     </span>
                     {it.side && <TeeImg className="hang__side" src={it.side} />}
                   </button>

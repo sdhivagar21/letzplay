@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { usePicks, goTo } from '../context/PicksContext.jsx';
-import { imgSrc, imgFallback } from '../api.js';
+import { imgFallback, imgSmall } from '../img.js';
 import { FORM_NAME } from '../data/site.js';
 
 const EMPTY = { name: '', phone: '', email: '', location: '' };
@@ -99,7 +99,7 @@ export default function InterestForm() {
           <ul className="lead__list">
             {list.map(({ design, size }) => (
               <li key={design.sku}>
-                <img src={imgSrc(design.images[1])} onError={imgFallback(design.images[1])} alt="" width="64" height="64" loading="lazy" />
+                <img src={imgSmall(design.images[1])} onError={imgFallback(design.images[1])} alt="" width="64" height="64" loading="lazy" decoding="async" />
                 <span className="lead__item"><b>{design.name}</b><span>Size {size}</span></span>
                 <button type="button" className="lead__remove" onClick={() => unpick(design.sku)} aria-label={`Remove ${design.name}`}>Remove</button>
               </li>

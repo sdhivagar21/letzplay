@@ -2,10 +2,25 @@ import React, { useEffect, useRef, useState } from 'react';
 import ClothingRail from '../components/ClothingRail.jsx';
 import InterestForm from '../components/InterestForm.jsx';
 import { usePicks, goTo } from '../context/PicksContext.jsx';
-import { imgSrc, imgFallback } from '../api.js';
+import { imgSrc, imgFallback, teeSrcSet } from '../img.js';
+import { isLite } from '../perf.js';
 import { DESIGNS } from '../data/railProducts.js';
 
 const pad2 = (n) => String(n).padStart(2, '0');
+const SHOW_SIZES = '(max-width: 860px) 84vw, 500px';
+
+// True while the element is on (or near) the screen.
+const useOnScreen = (ref) => {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setOn(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => setOn(e.isIntersecting), { rootMargin: '120px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
+  return on;
+};
 
 // True once the element has scrolled into view (stays true).
 const useSeen = (ref, margin = '0px 0px -18% 0px') => {
@@ -31,11 +46,12 @@ function Showcase({ design, index, total }) {
   const stage = useRef(null);
   const frame = useRef(0);
   const seen = useSeen(ref);
+  const live = useOnScreen(ref);
   const picked = picks[design.sku];
 
   // Lean the tee towards the pointer (mouse only; transform only).
   const onMove = (e) => {
-    if (e.pointerType !== 'mouse' || frame.current) return;
+    if (e.pointerType !== 'mouse' || frame.current || isLite()) return;
     const { clientX, clientY } = e;
     frame.current = requestAnimationFrame(() => {
       frame.current = 0;
@@ -50,7 +66,7 @@ function Showcase({ design, index, total }) {
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   return (
-    <article ref={ref} className={`show ${index % 2 ? 'show--alt' : ''} ${seen ? 'is-in' : ''} ${picked ? 'is-picked' : ''}`}
+    <article ref={ref} className={`show ${index % 2 ? 'show--alt' : ''} ${seen ? 'is-in' : ''} ${live ? 'is-live' : ''} ${picked ? 'is-picked' : ''}`}
              style={{ '--accent': design.accent, '--n': index }}>
       <div className="show__stage" ref={stage} onPointerMove={onMove} onPointerLeave={onLeave}>
         <span className="show__no" aria-hidden="true">{pad2(index + 1)}</span>
@@ -60,9 +76,9 @@ function Showcase({ design, index, total }) {
             <div className="show__tilt">
               <button type="button" className={`show__card ${front ? 'is-front' : ''}`} onClick={() => setFront((v) => !v)}
                       aria-label={`${design.name}: showing the ${front ? 'front' : 'back'}. Flip to see the ${front ? 'back' : 'front'}`}>
-                <img className="show__face show__face--back" src={imgSrc(design.images[1])} onError={imgFallback(design.images[1])} alt=""
+                <img className="show__face show__face--back" src={imgSrc(design.images[1])} srcSet={teeSrcSet(design.images[1])} sizes={SHOW_SIZES} onError={imgFallback(design.images[1])} alt=""
                      loading="lazy" decoding="async" width="760" height="950" draggable="false" />
-                <img className="show__face show__face--front" src={imgSrc(design.images[0])} onError={imgFallback(design.images[0])} alt=""
+                <img className="show__face show__face--front" src={imgSrc(design.images[0])} srcSet={teeSrcSet(design.images[0])} sizes={SHOW_SIZES} onError={imgFallback(design.images[0])} alt=""
                      loading="lazy" decoding="async" width="760" height="950" draggable="false" />
               </button>
             </div>
@@ -125,7 +141,7 @@ export default function Home() {
           <div className="drop__band-track">
             {[0, 1].map((k) => (
               <div className="drop__band-set" key={k}>
-                {[0, 1, 2, 3].map((n) => <span key={n}>The drop <i>05</i></span>)}
+                {[0, 1].map((n) => <span key={n}>The drop <i>05</i></span>)}
               </div>
             ))}
           </div>

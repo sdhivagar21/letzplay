@@ -8,3 +8,14 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# Repeat visits load from the browser cache.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
