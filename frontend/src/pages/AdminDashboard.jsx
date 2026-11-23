@@ -64,6 +64,8 @@ export default function AdminDashboard() {
             <div><span>All time</span><strong>{data.total.toLocaleString('en-IN')}</strong></div>
             <div><span>Today</span><strong>{data.today.toLocaleString('en-IN')}</strong></div>
             <div><span>Last 7 days</span><strong>{data.week.toLocaleString('en-IN')}</strong></div>
+            <div><span>Live try-ons today</span><strong>{(data.tryonToday || 0).toLocaleString('en-IN')}</strong></div>
+            <div><span>Live try-ons, 7 days</span><strong>{(data.tryonWeek || 0).toLocaleString('en-IN')}</strong></div>
           </div>
           <h2 className="h-display h-3 admin__sub">Last 14 days</h2>
           <ul className="admin__days">
@@ -75,7 +77,7 @@ export default function AdminDashboard() {
               </li>
             ))}
           </ul>
-          <p className="tiny muted">One visit is counted per browser per day. Pre-order details arrive by email, not here.</p>
+          <p className="tiny muted">One visit is counted per browser per day. Pre-order details arrive by email, not here. Each live try-on lasts up to about a minute and is billed by Decart (about $0.02 a second); the exact spend is on platform.decart.ai.</p>
         </>
       )}
       <div className="row-actions admin__actions">
