@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ClothingRail from '../components/ClothingRail.jsx';
 import InterestForm from '../components/InterestForm.jsx';
 import { usePicks, goTo } from '../context/PicksContext.jsx';
@@ -39,7 +40,7 @@ const useSeen = (ref, margin = '0px 0px -18% 0px') => {
 
 // One design, full width: a floating tee that flips front/back in 3D and
 // leans towards the mouse, next to its name and a row of sizes.
-function Showcase({ design, index, total, onTry }) {
+function Showcase({ design, index, total, onTry, dragTees }) {
   const { picks, pick, unpick } = usePicks();
   const [front, setFront] = useState(false);       // starts on the back, where the artwork is
   const ref = useRef(null);
@@ -77,9 +78,9 @@ function Showcase({ design, index, total, onTry }) {
               <button type="button" className={`show__card ${front ? 'is-front' : ''}`} onClick={() => setFront((v) => !v)}
                       aria-label={`${design.name}: showing the ${front ? 'front' : 'back'}. Flip to see the ${front ? 'back' : 'front'}`}>
                 <img className="show__face show__face--back" src={imgSrc(design.images[1])} srcSet={teeSrcSet(design.images[1])} sizes={SHOW_SIZES} onError={imgFallback(design.images[1])} alt=""
-                     loading="lazy" decoding="async" width="760" height="950" draggable="false" />
+                     loading="lazy" decoding="async" width="760" height="950" draggable={dragTees ? 'true' : 'false'} data-tee={design.sku} data-side="back" />
                 <img className="show__face show__face--front" src={imgSrc(design.images[0])} srcSet={teeSrcSet(design.images[0])} sizes={SHOW_SIZES} onError={imgFallback(design.images[0])} alt=""
-                     loading="lazy" decoding="async" width="760" height="950" draggable="false" />
+                     loading="lazy" decoding="async" width="760" height="950" draggable={dragTees ? 'true' : 'false'} data-tee={design.sku} data-side="front" />
               </button>
             </div>
           </div>
@@ -189,7 +190,30 @@ const placeTee = (pose, img, fit) => {
 
 const ease = (from, to, k) => (from == null ? to : from + (to - from) * k);
 
-function TryOn({ sku, onSku }) {
+// Saves a canvas as a JPEG: the phone's share sheet when it can, else a download.
+const shareCanvas = (canvas, name, title) => new Promise((done) => {
+  canvas.toBlob(async (blob) => {
+    if (!blob) { done(); return; }
+    const file = new File([blob], name, { type: 'image/jpeg' });
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+        done();
+        return;
+      }
+    } catch (e) { if (e?.name === 'AbortError') { done(); return; } }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    done();
+  }, 'image/jpeg', 0.92);
+});
+
+function TryOn({ sku, onSku, onLive }) {
   const { picks, pick, unpick } = usePicks();
   const design = DESIGNS.find((d) => d.sku === sku) || DESIGNS[0];
   const picked = picks[design.sku];
@@ -412,27 +436,15 @@ function TryOn({ sku, onSku }) {
     return () => io.disconnect();
   }, [stop]);
   useEffect(() => () => stopCamera(), [stopCamera]);
+  // Phones allow one camera at a time: the live AI panel takes it over.
+  useEffect(() => {
+    const free = () => { if (run.current.stream) stop(); };
+    window.addEventListener('aw:live-open', free);
+    return () => window.removeEventListener('aw:live-open', free);
+  }, [stop]);
 
   const savePhoto = () => {
-    const c = canvasRef.current;
-    if (!c) return;
-    c.toBlob(async (blob) => {
-      if (!blob) return;
-      const file = new File([blob], `aura-wears-${design.sku}.jpg`, { type: 'image/jpeg' });
-      try {
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: `Aura Wears · ${design.name}` });
-          return;
-        }
-      } catch (e) { if (e?.name === 'AbortError') return; }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    }, 'image/jpeg', 0.92);
+    if (canvasRef.current) shareCanvas(canvasRef.current, `aura-wears-${design.sku}.jpg`, `Aura Wears · ${design.name}`);
   };
 
   const showing = mode === 'live' || mode === 'photo';
@@ -443,7 +455,11 @@ function TryOn({ sku, onSku }) {
       <div className="tryon__head">
         <p className="tryon__kicker">Live try-on</p>
         <h2 className="tryon__title" id="tryon-title">Try it <span>on you</span></h2>
-        <p className="tryon__lede">Open your camera and the tee sits on you as you move. Turn around to see the back print.</p>
+        <p className="tryon__lede">
+          {onLive
+            ? 'Live AI puts the tee on you as you move, folds and all. Or use the quick preview: free, and it never leaves your phone.'
+            : 'Open your camera and the tee sits on you as you move. Turn around to see the back print.'}
+        </p>
       </div>
 
       <div className="tryon__body">
@@ -458,7 +474,14 @@ function TryOn({ sku, onSku }) {
           )}
           {mode === 'idle' && (
             <div className="tryon__cue">
-              <button type="button" className="rail-pill rail-pill--solid" onClick={startCamera}>Start camera</button>
+              {onLive && (
+                <button type="button" className="rail-pill rail-pill--solid tryon__live" onClick={() => onLive(design.sku)}>
+                  <span className="tryon__spark" aria-hidden="true" />Live AI try-on
+                </button>
+              )}
+              <button type="button" className={`rail-pill ${onLive ? '' : 'rail-pill--solid'}`} onClick={startCamera}>
+                {onLive ? 'Quick preview' : 'Start camera'}
+              </button>
               <button type="button" className="tryon__link" onClick={() => fileRef.current?.click()}>Use a photo instead</button>
             </div>
           )}
@@ -474,7 +497,8 @@ function TryOn({ sku, onSku }) {
               {DESIGNS.map((d) => (
                 <button key={d.sku} type="button" className={`tryon__tee ${d.sku === design.sku ? 'is-active' : ''}`}
                         aria-pressed={d.sku === design.sku} aria-label={d.name} onClick={() => onSku(d.sku)}>
-                  <img src={imgSmall(d.images[0])} onError={imgFallback(d.images[0])} alt="" width="480" height="600" loading="lazy" draggable="false" />
+                  <img src={imgSmall(d.images[0])} onError={imgFallback(d.images[0])} alt="" width="480" height="600" loading="lazy"
+                       draggable={onLive ? 'true' : 'false'} data-tee={d.sku} data-side="front" />
                 </button>
               ))}
             </div>
@@ -529,6 +553,465 @@ function TryOn({ sku, onSku }) {
   );
 }
 
+/* ------------------------------------------------------------------
+   Live AI try-on, like the Anywear extension (anywear.decart.ai).
+   Decart's Lucy VTON model redraws the chosen tee onto the visitor's
+   live camera, with real fabric movement, a second or two after it is
+   picked. Drag any tee on the page (or any clothing picture) onto the
+   panel, or pick one from its strip; switching keeps the same session.
+   - The SDK loads from jsDelivr only when someone taps Start camera.
+   - netlify/functions/tryon-token.mjs hands out a one-session token and
+     caps length, daily total and per-visitor use (billed per second).
+   - Without DECART_API_KEY on Netlify the panel never shows and every
+     "Try it on" opens the free quick preview instead.
+   ------------------------------------------------------------------ */
+const DECART_SDK = 'https://cdn.jsdelivr.net/npm/@decartai/sdk@0.2.14/+esm';
+const TOKEN_URL = '/.netlify/functions/tryon-token';
+const ANY_TOP = 'Substitute the current top with the garment in the reference image, keeping its exact colour, print, fabric and fit';
+const TEE_DRAG = 'application/x-aura-tee';
+
+let liveStatusPromise = null;
+const getLiveStatus = () => {
+  if (!liveStatusPromise) {
+    liveStatusPromise = fetch(TOKEN_URL, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { enabled: false }))
+      .catch(() => ({ enabled: false }));
+  }
+  return liveStatusPromise;
+};
+const useLiveStatus = () => {
+  const [status, setStatus] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    getLiveStatus().then((s) => { if (alive) setStatus(s); });
+    return () => { alive = false; };
+  }, []);
+  return status;
+};
+
+// A garment picture as the model likes it: JPEG on white, at most 1024 px.
+const garmentBlob = async (src) => {
+  const img = await loadImage(src);
+  const k = Math.min(1, 1024 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * k);
+  c.height = Math.round(img.naturalHeight * k);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('image'))), 'image/jpeg', 0.92));
+};
+
+// Which of our tees a dragged picture's address points at, if any.
+const teeFromUrl = (url) => {
+  if (!url) return null;
+  for (const d of DESIGNS) {
+    for (let i = 0; i < 2; i += 1) {
+      const stem = d.images[i].replace(/\.v2\.png$/, '');
+      if (url.includes(stem)) return { sku: d.sku, side: i ? 'back' : 'front' };
+    }
+  }
+  return null;
+};
+
+const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const garmentKey = (g) => (g.custom ? `custom:${g.custom.url}` : `${g.sku}:${g.side}`);
+
+function LiveTryOn({ request, onClose, onFallback }) {
+  const { picks, pick, unpick } = usePicks();
+  const [garment, setGarment] = useState({ sku: request.sku, side: 'front', custom: null });
+  const [phase, setPhase] = useState('idle');        // idle | camera | connecting | live | ended
+  const [message, setMessage] = useState('');        // why it ended
+  const [offerPreview, setOfferPreview] = useState(false);
+  const [queue, setQueue] = useState(null);
+  const [left, setLeft] = useState(0);
+  const [weak, setWeak] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const [note, setNote] = useState('');
+  const [pos, setPos] = useState(null);
+
+  const panelRef = useRef(null);
+  const stripRef = useRef(null);
+  const startRef = useRef(null);
+  const localRef = useRef(null);
+  const remoteRef = useRef(null);
+  const returnFocus = useRef(null);
+  const run = useRef({ rt: null, stream: null, timer: 0, token: 0, limit: 60, began: 0, applied: '' });
+  const garmentRef = useRef(garment);
+  garmentRef.current = garment;
+
+  const design = DESIGNS.find((d) => d.sku === garment.sku) || DESIGNS[0];
+  const picked = picks[design.sku];
+  const live = phase === 'live';
+
+  // A newer "Try it on" click while open swaps the tee.
+  useEffect(() => { setGarment({ sku: request.sku, side: 'front', custom: null }); }, [request]);
+
+  // Keep the chosen tee (or a dropped picture, at the end) in view in the strip.
+  useEffect(() => {
+    const strip = stripRef.current;
+    const on = strip?.querySelector('.is-active');
+    if (on) strip.scrollTo({ left: on.offsetLeft - strip.clientWidth / 2 + on.clientWidth / 2, behavior: 'smooth' });
+  }, [garment]);
+
+  const flash = useCallback((text) => {
+    setNote(text);
+    clearTimeout(run.current.noteTimer);
+    run.current.noteTimer = setTimeout(() => setNote(''), 4200);
+  }, []);
+
+  const inputFor = useCallback(async (g) => {
+    if (g.custom) return { image: g.custom.blob, prompt: ANY_TOP, enhance: true };
+    const d = DESIGNS.find((x) => x.sku === g.sku) || DESIGNS[0];
+    const i = g.side === 'back' ? 1 : 0;
+    const image = await garmentBlob(imgSrc(d.images[i])).catch(() => garmentBlob(d.images[i]));
+    const prompt = d.tryOn?.[g.side] || ANY_TOP;
+    return { image, prompt, enhance: !d.tryOn?.[g.side] };
+  }, []);
+
+  // Stops everything that costs money or holds the camera.
+  const teardown = useCallback(() => {
+    const r = run.current;
+    r.token += 1;
+    clearInterval(r.timer);
+    r.timer = 0;
+    try { r.rt?.disconnect(); } catch { /* already closed */ }
+    r.rt = null;
+    r.stream?.getTracks().forEach((t) => t.stop());
+    r.stream = null;
+    [localRef, remoteRef].forEach((v) => { if (v.current) v.current.srcObject = null; });
+    setQueue(null);
+    setWeak(false);
+    setReconnecting(false);
+    setSwitching(false);
+  }, []);
+
+  const end = useCallback((text, preview = false) => {
+    teardown();
+    setPhase(text ? 'ended' : 'idle');
+    setMessage(text || '');
+    setOfferPreview(preview);
+  }, [teardown]);
+
+  const goLive = useCallback(() => {
+    const r = run.current;
+    if (r.timer) return;
+    r.began = performance.now();
+    setLeft(r.limit);
+    setPhase('live');
+    setQueue(null);
+    r.timer = setInterval(() => {
+      const remain = Math.max(0, Math.ceil(r.limit - (performance.now() - r.began) / 1000));
+      setLeft(remain);
+      if (!remain) end('That’s your minute. Start again to try another look.');
+    }, 250);
+  }, [end]);
+
+  const start = async () => {
+    const r = run.current;
+    teardown();
+    const id = run.current.token;
+    setMessage('');
+    setOfferPreview(false);
+    if (!navigator.mediaDevices?.getUserMedia) { end('This browser can’t open the camera here.', true); return; }
+    setPhase('camera');
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+      });
+    } catch (e) {
+      if (id !== r.token) return;
+      end(e?.name === 'NotAllowedError' || e?.name === 'SecurityError'
+        ? 'Camera access was blocked. Allow the camera for this site, then start again.'
+        : 'No camera found on this device.', true);
+      return;
+    }
+    if (id !== r.token) { stream.getTracks().forEach((t) => t.stop()); return; }
+    r.stream = stream;
+    if (localRef.current) { localRef.current.srcObject = stream; localRef.current.play().catch(() => {}); }
+    setPhase('connecting');
+    try {
+      const startGarment = garmentRef.current;
+      const [token, sdk, input] = await Promise.all([
+        fetch(TOKEN_URL, { method: 'POST' }).then(async (res) => ({ ok: res.ok, ...(await res.json().catch(() => ({}))) })),
+        import(/* @vite-ignore */ DECART_SDK),
+        inputFor(startGarment),
+      ]);
+      if (id !== r.token) return;
+      if (!token.ok || !token.apiKey) { end(token.message || 'Live try-on is unavailable right now.', true); return; }
+      r.limit = Math.max(10, (token.seconds || 65) - 5);
+      const client = sdk.createDecartClient({ apiKey: token.apiKey });
+      const rt = await client.realtime.connect(stream, {
+        model: sdk.models.realtime('lucy-vton-latest'),
+        mirror: 'auto',
+        retries: 2,
+        capacityRetryBudgetMs: 25000,
+        initialState: { image: input.image, prompt: { text: input.prompt, enhance: input.enhance } },
+        onRemoteStream: (s) => {
+          if (id !== run.current.token) return;
+          const v = remoteRef.current;
+          if (v) { v.srcObject = s; v.play().catch(() => {}); }
+        },
+        onQueuePosition: (q) => { if (id === run.current.token) setQueue(q); },
+        onCapacityWait: () => { if (id === run.current.token) setQueue((q) => q || { position: 0, queueSize: 0 }); },
+        onConnectionQuality: (q) => { if (id === run.current.token) setWeak(!q.warmingUp && (q.quality === 'poor' || q.quality === 'critical')); },
+      });
+      if (id !== r.token) { rt.disconnect(); return; }
+      r.rt = rt;
+      r.applied = garmentKey(startGarment);
+      rt.on('connectionChange', (state) => {
+        if (id !== run.current.token) return;
+        setReconnecting(state === 'reconnecting');
+        if (state === 'generating') goLive();
+      });
+      rt.on('sessionEnded', ({ reason }) => {
+        if (id !== run.current.token) return;
+        if (reason === 'insufficient_credits') end('Live try-on is resting for now. Try the quick preview.', true);
+        else if (reason === 'session_limit') end('Lots of people are trying on right now. Try again in a minute.', true);
+        else if (reason === 'moderation_violation') end('The try-on stopped. Start again, facing the camera.');
+        else end('That’s your minute. Start again to try another look.');
+      });
+      rt.on('error', () => {
+        if (id === run.current.token && !rt.isConnected()) end('The connection dropped. Start again to keep trying on.', true);
+      });
+      if (rt.getConnectionState() === 'generating') goLive();
+    } catch (e) {
+      if (id !== r.token) return;
+      const text = /api key|token/i.test(String(e?.message)) ? 'Live try-on is unavailable right now.' : 'Couldn’t reach the try-on. Check your connection and start again.';
+      end(text, true);
+    }
+  };
+
+  // Put on the chosen tee without reconnecting.
+  useEffect(() => {
+    const r = run.current;
+    if (!live || !r.rt) return undefined;
+    const key = garmentKey(garment);
+    if (r.applied === key) return undefined;
+    r.applied = key;
+    let alive = true;
+    setSwitching(true);
+    inputFor(garment)
+      .then((input) => (alive && r.rt ? r.rt.setImage(input.image, { prompt: input.prompt, enhance: input.enhance }) : null))
+      .catch(() => { if (alive) flash('Couldn’t put that on. Try another one.'); })
+      .finally(() => { if (alive) setSwitching(false); });
+    return () => { alive = false; };
+  }, [garment, live, inputFor, flash]);
+
+  const close = useCallback(() => {
+    teardown();
+    onClose();
+  }, [teardown, onClose]);
+
+  // Tees on the page carry data-tee; dragging one tells the drop which tee it is.
+  useEffect(() => {
+    const onDragStart = (e) => {
+      const el = e.target?.closest?.('[data-tee]');
+      if (el && e.dataTransfer) e.dataTransfer.setData(TEE_DRAG, `${el.dataset.tee}|${el.dataset.side || 'front'}`);
+    };
+    document.addEventListener('dragstart', onDragStart);
+    return () => document.removeEventListener('dragstart', onDragStart);
+  }, []);
+
+  // Leaving the page pauses it (no paying for a hidden tab). Esc closes.
+  useEffect(() => {
+    const onHide = () => { if (document.hidden && run.current.stream) end('Paused while you were away. Start again when you’re back.'); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('visibilitychange', onHide); window.removeEventListener('keydown', onKey); };
+  }, [end, close]);
+
+  // Focus moves into the panel, and back to the button that opened it.
+  useEffect(() => {
+    returnFocus.current = document.activeElement;
+    startRef.current?.focus({ preventScroll: true });
+    const back = returnFocus.current;
+    return () => {
+      teardown();
+      clearTimeout(run.current.noteTimer);
+      if (back && document.contains(back)) back.focus({ preventScroll: true });
+    };
+  }, [teardown]);
+
+  // Drag the panel around by its top bar (desktop).
+  const dragPanel = (e) => {
+    if (e.target.closest('button') || window.matchMedia('(max-width: 640px)').matches) return;
+    const el = panelRef.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const dx = e.clientX - box.left;
+    const dy = e.clientY - box.top;
+    const move = (ev) => {
+      const x = Math.min(Math.max(8, ev.clientX - dx), window.innerWidth - box.width - 8);
+      const y = Math.min(Math.max(8, ev.clientY - dy), window.innerHeight - 80);
+      setPos({ x, y });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  // Dropping a tee from the page, a picture file, or a picture from another site.
+  const canDrop = (dt) => dt && [...dt.types].some((t) => t === TEE_DRAG || t === 'Files' || t === 'text/uri-list');
+  const onDragOver = (e) => {
+    if (!canDrop(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropping(true);
+  };
+  const onDragLeave = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDropping(false); };
+  const onDrop = async (e) => {
+    e.preventDefault();
+    setDropping(false);
+    const dt = e.dataTransfer;
+    const own = dt.getData(TEE_DRAG);
+    if (own) {
+      const [s, side] = own.split('|');
+      if (DESIGNS.some((d) => d.sku === s)) { setGarment({ sku: s, side: side === 'back' ? 'back' : 'front', custom: null }); return; }
+    }
+    const url = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').split('\n')[0].trim();
+    const ours = teeFromUrl(url);
+    if (ours) { setGarment({ ...ours, custom: null }); return; }
+    let blob = [...(dt.files || [])].find((f) => f.type.startsWith('image/')) || null;
+    if (!blob && /^https?:\/\//.test(url)) {
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        const b = res.ok ? await res.blob() : null;
+        if (b?.type.startsWith('image/')) blob = b;
+      } catch { /* the other site does not share its pictures */ }
+    }
+    if (!blob) { flash('Couldn’t read that picture. Save it, then drop the file here.'); return; }
+    const preview = URL.createObjectURL(blob);
+    try {
+      const jpg = await garmentBlob(preview);
+      setGarment((g) => ({ sku: g.sku, side: 'front', custom: { blob: jpg, url: preview } }));
+    } catch {
+      flash('Couldn’t read that picture. Try another one.');
+    }
+  };
+
+  const photo = async () => {
+    const v = remoteRef.current;
+    if (!v || !v.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    try {
+      const lg = await loadImage(LOGO);
+      const w = Math.min(c.width, c.height) * 0.26;
+      ctx.globalAlpha = 0.92;
+      ctx.drawImage(lg, c.width - w - c.width * 0.04, c.height - w * (lg.naturalHeight / lg.naturalWidth) - c.height * 0.03, w, w * (lg.naturalHeight / lg.naturalWidth));
+    } catch { /* photo without the logo */ }
+    shareCanvas(c, `aura-wears-${garment.custom ? 'try-on' : design.sku}.jpg`, `Aura Wears · ${garment.custom ? 'Try-on' : design.name}`);
+  };
+
+  const busy = phase === 'camera' || phase === 'connecting';
+  const name = garment.custom ? 'your pick' : design.name;
+  const poster = garment.custom ? garment.custom.url : imgSrc(design.images[garment.side === 'back' ? 1 : 0]);
+
+  return createPortal(
+    <div ref={panelRef} className={`lv lv--${phase} ${pos ? 'is-moved' : ''}`} role="dialog" aria-modal="false" aria-labelledby="lv-title"
+         style={pos ? { left: `${pos.x}px`, top: `${pos.y}px` } : undefined}>
+      <div className="lv__bar" onPointerDown={dragPanel}>
+        <img className="lv__logo" src={LOGO} alt="" width="900" height="368" draggable="false" />
+        <p className="lv__title" id="lv-title">Try-On <span>· Live AI</span></p>
+        {live && <span className="lv__clock" aria-label={`${left} seconds left`}>{clock(left)}</span>}
+        <button type="button" className="lv__x" onClick={close} aria-label="Close the try-on">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+        </button>
+      </div>
+
+      <div className={`lv__stage ${dropping ? 'is-drop' : ''}`} onDragEnter={onDragOver} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+        <video ref={localRef} className={`lv__local ${busy ? 'is-on' : ''}`} playsInline muted aria-hidden="true" />
+        <video ref={remoteRef} className={`lv__remote ${live ? 'is-on' : ''}`} playsInline muted aria-label={`You wearing ${name}, live`} />
+
+        {(phase === 'idle' || phase === 'ended') && (
+          <div className="lv__poster">
+            <img key={poster} src={poster} alt="" draggable="false" />
+          </div>
+        )}
+        {phase === 'idle' && (
+          <div className="lv__cue">
+            <button ref={startRef} type="button" className="rail-pill rail-pill--solid" onClick={start}>Start camera</button>
+            <p>See it on you in about a second. Move, turn, raise your arms.</p>
+          </div>
+        )}
+        {phase === 'ended' && (
+          <div className="lv__cue lv__cue--ended" role="status">
+            <p className="lv__ended">{message}</p>
+            <button ref={startRef} type="button" className="rail-pill rail-pill--solid" onClick={start}>Start again</button>
+            {offerPreview && <button type="button" className="lv__link" onClick={() => onFallback(garment.sku)}>Use the quick preview</button>}
+          </div>
+        )}
+        {busy && (
+          <p className="lv__status" role="status">
+            {queue
+              ? (queue.position > 0 ? `You’re number ${queue.position} in line…` : 'Busy right now. Waiting for a free spot…')
+              : phase === 'camera' ? 'Opening your camera…' : 'Getting your fitting room ready…'}
+          </p>
+        )}
+        {live && <span className="lv__badge">Live</span>}
+        {live && (weak || reconnecting) && <span className="lv__weak" role="status">{reconnecting ? 'Reconnecting…' : 'Weak connection'}</span>}
+        {live && switching && <p className="lv__status lv__status--top" role="status">Putting on {name}…</p>}
+        {dropping && <div className="lv__drop" aria-hidden="true"><span>Drop to try it on</span></div>}
+        {note && <p className="lv__note-flash" role="status">{note}</p>}
+        {live && !note && !switching && <p className="lv__hint">Drag any tee here</p>}
+      </div>
+
+      <div className="lv__panel">
+        <div className="lv__strip" role="group" aria-label="Tee to try on" ref={stripRef}>
+          {DESIGNS.map((d) => (
+            <button key={d.sku} type="button" className={`lv__tee ${!garment.custom && d.sku === garment.sku ? 'is-active' : ''}`}
+                    aria-pressed={!garment.custom && d.sku === garment.sku} aria-label={d.name}
+                    onClick={() => setGarment((g) => ({ sku: d.sku, side: g.custom ? 'front' : g.side, custom: null }))}>
+              <img src={imgSmall(d.images[0])} onError={imgFallback(d.images[0])} alt="" width="480" height="600" loading="lazy" draggable="false" />
+            </button>
+          ))}
+          {garment.custom && (
+            <span className="lv__tee is-active lv__tee--own" title="Your picture">
+              <img src={garment.custom.url} alt="Your picture" draggable="false" />
+            </span>
+          )}
+        </div>
+
+        <div className="lv__row">
+          <div className="tryon__seg lv__seg" role="group" aria-label="Which print">
+            {['front', 'back'].map((s) => (
+              <button key={s} type="button" className={!garment.custom && garment.side === s ? 'is-active' : ''} aria-pressed={!garment.custom && garment.side === s}
+                      disabled={Boolean(garment.custom)} onClick={() => setGarment((g) => ({ ...g, side: s }))}>
+                {s === 'front' ? 'Front' : 'Back'}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="rail-pill rail-pill--solid lv__shot" onClick={photo} disabled={!live}>Take photo</button>
+        </div>
+
+        {!garment.custom && (
+          <div className="lv__size">
+            <p><b>{design.name}</b>{picked ? <span> · In your picks · {picked}</span> : <span> · pick a size to pre-order</span>}</p>
+            <div className="lv__sizes" role="group" aria-label={`Size for ${design.name}`}>
+              {design.sizes.map((s) => (
+                <button key={s} type="button" className={s === picked ? 'is-active' : ''} aria-pressed={s === picked}
+                        onClick={() => (s === picked ? unpick(design.sku) : pick(design.sku, s))}>{s}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="lv__legal">AI by Decart. Your camera video goes to Decart to draw the tee on you; Aura Wears doesn’t record it. Up to a minute per try-on.</p>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // Follows the visitor once something is picked, until the form is on screen.
 function PickBar() {
   const { count } = usePicks();
@@ -552,7 +1035,17 @@ function PickBar() {
 
 export default function Home() {
   const [tryOn, setTryOn] = useState(DESIGNS[0].sku);
-  const openTryOn = useCallback((sku) => { setTryOn(sku); goTo('try-on'); }, []);
+  const live = useLiveStatus();                        // { enabled } once the site has answered
+  const liveOn = Boolean(live?.enabled);
+  const [liveAsk, setLiveAsk] = useState(null);        // { sku, n } while the live panel is open
+  const openLive = useCallback((sku) => {
+    window.dispatchEvent(new Event('aw:live-open'));
+    setLiveAsk((a) => ({ sku, n: (a?.n || 0) + 1 }));
+  }, []);
+  const openPreview = useCallback((sku) => { setTryOn(sku); goTo('try-on'); }, []);
+  const openTryOn = useCallback((sku) => (liveOn ? openLive(sku) : openPreview(sku)), [liveOn, openLive, openPreview]);
+  const closeLive = useCallback(() => setLiveAsk(null), []);
+  const liveToPreview = useCallback((sku) => { setLiveAsk(null); openPreview(sku); }, [openPreview]);
   return (
     <main>
       <ClothingRail />
@@ -568,10 +1061,11 @@ export default function Home() {
             ))}
           </div>
         </div>
-        {DESIGNS.map((d, i) => <Showcase key={d.sku} design={d} index={i} total={DESIGNS.length} onTry={openTryOn} />)}
+        {DESIGNS.map((d, i) => <Showcase key={d.sku} design={d} index={i} total={DESIGNS.length} onTry={openTryOn} dragTees={liveOn} />)}
       </section>
 
-      <TryOn sku={tryOn} onSku={setTryOn} />
+      <TryOn sku={tryOn} onSku={setTryOn} onLive={liveOn ? openLive : null} />
+      {liveAsk && <LiveTryOn request={liveAsk} onClose={closeLive} onFallback={liveToPreview} />}
 
       <InterestForm />
       <PickBar />
