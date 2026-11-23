@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePicks, goTo } from '../context/PicksContext.jsx';
 import { imgSrc, imgFallback, teeSrcSet } from '../img.js';
 import { RAIL_ITEMS } from '../data/railProducts.js';
@@ -27,10 +28,10 @@ const RailDefs = () => (
   <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="lp-wood" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="84">
-        <stop offset="0" stopColor="#d9b07a" /><stop offset=".55" stopColor="#b98a52" /><stop offset="1" stopColor="#8f6536" />
+        <stop offset="0" stopColor="#8a8d93" /><stop offset=".55" stopColor="#8a8d93" stopOpacity=".8" /><stop offset="1" stopColor="#8a8d93" stopOpacity=".55" />
       </linearGradient>
       <linearGradient id="lp-steel" gradientUnits="userSpaceOnUse" x1="86" y1="0" x2="114" y2="0">
-        <stop offset="0" stopColor="#8d9299" /><stop offset=".5" stopColor="#eef0f2" /><stop offset="1" stopColor="#7c8188" />
+        <stop offset="0" stopColor="#8a8d93" stopOpacity=".6" /><stop offset=".5" stopColor="#8a8d93" /><stop offset="1" stopColor="#8a8d93" stopOpacity=".5" />
       </linearGradient>
     </defs>
   </svg>
@@ -214,6 +215,112 @@ function RailDetail({ items, index, setIndex, railRect, reduced, onClosed }) {
 }
 
 /* ------------------------------------------------------------------
+   Logo intro: the first time someone opens the site in a session.
+   A dot grows into a ball, the ball becomes the hanger hook, the
+   hanger draws out, the A rises, the red slash cuts in, the mark
+   slides left while U-R-A come in, WEARS opens out, then the logo
+   flies into its place at the top of the rail.
+   Each part of the logo is its own layer in /images/logo-anim/
+   (all cut from the same 1276 x 522 box as aura-wears-logo).
+   ------------------------------------------------------------------ */
+const INTRO_KEY = 'aw-intro-seen';
+const INTRO_LAYERS = ['arms', 'a', 'red', 'u', 'r', 'a2', 'wears', 'hook'];
+const INTRO_HOLD = 3700;   // ms from start until the logo flies to the header
+
+const shouldPlayIntro = () => {
+  if (typeof window === 'undefined') return false;
+  try { if (window.sessionStorage.getItem(INTRO_KEY)) return false; } catch { /* storage blocked: still play */ }
+  return !window.matchMedia?.(REDUCED_QUERY).matches;
+};
+
+function LogoIntro({ targetRef, onDone }) {
+  const rootRef = useRef(null);
+  const boxRef = useRef(null);
+  const state = useRef('load');            // load → play → fly → done
+  const timers = useRef([]);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+
+  const finish = useCallback(() => {
+    if (state.current === 'done') return;
+    state.current = 'done';
+    timers.current.forEach(clearTimeout);
+    try { window.sessionStorage.setItem(INTRO_KEY, '1'); } catch { /* ignore */ }
+    doneRef.current();
+  }, []);
+
+  // Moves the finished logo onto the header logo and fades the black away.
+  const fly = useCallback((fast) => {
+    if (state.current !== 'play') return;
+    state.current = 'fly';
+    timers.current.forEach(clearTimeout);
+    const root = rootRef.current;
+    const box = boxRef.current;
+    const target = targetRef.current;
+    root.classList.add('is-fly');
+    const from = box.getBoundingClientRect();
+    const to = target?.getBoundingClientRect();
+    if (!to || !to.width || !from.width) { finish(); return; }
+    const dx = to.left - from.left;
+    const dy = to.top - from.top;
+    const s = to.width / from.width;
+    const duration = fast ? 420 : 780;
+    const easing = 'cubic-bezier(.65,0,.35,1)';
+    box.animate([{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${s})` }], { duration, easing, fill: 'forwards' });
+    root.animate([{ backgroundColor: 'rgba(11,11,12,1)' }, { backgroundColor: 'rgba(11,11,12,0)' }], { duration, easing: 'ease-in', fill: 'forwards' });
+    timers.current.push(setTimeout(finish, duration + 20));
+  }, [finish, targetRef]);
+
+  const skip = useCallback(() => {
+    if (state.current === 'play') fly(true);
+    else if (state.current === 'load') finish();
+  }, [fly, finish]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const html = document.documentElement;
+    const overflow = html.style.overflow;
+    html.style.overflow = 'hidden';
+    let live = true;
+    // Start only when every layer is decoded, so no part pops in late.
+    const giveUp = setTimeout(() => { if (live && state.current === 'load') finish(); }, 2500);
+    const imgs = [...root.querySelectorAll('img')];
+    Promise.all(imgs.map((img) => (img.decode ? img.decode() : Promise.resolve())))
+      .then(() => {
+        if (!live || state.current !== 'load') return;
+        clearTimeout(giveUp);
+        state.current = 'play';
+        root.classList.add('is-go');
+        timers.current.push(setTimeout(() => fly(false), INTRO_HOLD));
+      })
+      .catch(() => { if (live) finish(); });
+    const onKey = (e) => { if (['Escape', 'Enter', ' '].includes(e.key)) { e.preventDefault(); skip(); } };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      live = false;
+      clearTimeout(giveUp);
+      timers.current.forEach(clearTimeout);
+      window.removeEventListener('keydown', onKey);
+      html.style.overflow = overflow;
+    };
+  }, [finish, fly, skip]);
+
+  return createPortal(
+    <div className="intro" ref={rootRef} onClick={skip}>
+      <div className="intro__box" ref={boxRef} aria-hidden="true">
+        <span className="intro__ball" />
+        {INTRO_LAYERS.map((k) => (
+          <img key={k} className={`intro__layer intro__layer--${k}`} src={`/images/logo-anim/${k}.webp`}
+               alt="" width="1276" height="522" draggable="false" />
+        ))}
+      </div>
+      <button type="button" className="intro__skip" onClick={(e) => { e.stopPropagation(); skip(); }}>Skip intro</button>
+    </div>,
+    document.body,
+  );
+}
+
+/* ------------------------------------------------------------------
    The rail itself.
    Desktop: tees hang side-on and turn to face you on hover.
    Phones:  the rail swipes sideways and the centre tee faces you.
@@ -227,6 +334,9 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
   const trackRef = useRef(null);
   const sectionRef = useRef(null);
   const [away, setAway] = useState(false);       // scrolled out of view: looping animations pause
+  const [intro, setIntro] = useState(shouldPlayIntro);
+  const endIntro = useCallback(() => setIntro(false), []);
+  const logoRef = useRef(null);
   const itemRefs = useRef([]);
   const frame = useRef(0);
 
@@ -326,14 +436,14 @@ export default function ClothingRail({ items = RAIL_ITEMS }) {
       <div className="rail__inner" aria-hidden={isOpen || undefined}>
         <div className="rail__top">
           <a href="#designs">The drop</a>
-          <span className="rail__logo">
-            <img src="/images/logo.webp" alt="" width="34" height="34" loading="lazy"
-                 onError={(e) => { if (!e.currentTarget.dataset.f) { e.currentTarget.dataset.f = 1; e.currentTarget.src = '/images/logo.png'; } }} />
-            <span>LET’Z PLAY</span>
+          {intro && <LogoIntro targetRef={logoRef} onDone={endIntro} />}
+          <span className={`rail__logo ${intro ? 'is-waiting' : ''}`}>
+            <img ref={logoRef} src="/images/aura-wears-logo.webp" alt="Aura Wears" width="900" height="368"
+                 onError={(e) => { if (!e.currentTarget.dataset.f) { e.currentTarget.dataset.f = 1; e.currentTarget.src = '/images/aura-wears-logo.png'; } }} />
           </span>
           <a href="#preorder">Pre-order</a>
         </div>
-        <h1 className="sr-only">LET’Z PLAY oversized tees. Pick your design and pre-order.</h1>
+        <h1 className="sr-only">Aura Wears oversized tees. Pick your design and pre-order.</h1>
 
         <div className="rail__stage">
           <div className="rail__bar" aria-hidden="true" />

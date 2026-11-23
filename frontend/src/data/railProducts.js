@@ -8,17 +8,17 @@
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 const design = (sku, name, color, slug, accent) => ({
-  sku, name, color, accent,              // accent: glow colour behind the tee
+  sku, name, color, accent,              // accent: colour of the picked size and "In your picks"
   sizes: SIZES,
   images: [`/images/rail/${slug}-front.v2.png`, `/images/rail/${slug}-back.v2.png`],
 });
 
 export const RAIL_DESIGNS = {
-  thalapathy: design('thalapathy', 'Thalapathy', 'Washed black', 'thalapathy', '#e0373a'),
-  doom: design('doom', 'Doom', 'Washed black', 'doom', '#63c24a'),
-  nothing: design('nothing-happened', 'Nothing Happened', 'Cream', 'nothing', '#e8d9b8'),
-  gta: design('grand-theft-auto', 'Grand Theft Auto', 'Washed black', 'gta', '#ff5fa8'),
-  virat: design('virat-18', 'Virat 18', 'Navy', 'virat', '#e3b53a'),
+  thalapathy: design('thalapathy', 'Thalapathy', 'Washed black', 'thalapathy', '#c8102e'),
+  doom: design('doom', 'Doom', 'Washed black', 'doom', '#c8102e'),
+  nothing: design('nothing-happened', 'Nothing Happened', 'Cream', 'nothing', '#c8102e'),
+  gta: design('grand-theft-auto', 'Grand Theft Auto', 'Washed black', 'gta', '#c8102e'),
+  virat: design('virat-18', 'Virat 18', 'Navy', 'virat', '#c8102e'),
 };
 
 // The five designs, in the order they are listed under the rail.

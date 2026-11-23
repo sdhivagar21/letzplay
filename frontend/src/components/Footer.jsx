@@ -6,9 +6,9 @@ export default function Footer() {
   const year = new Date().getFullYear();
   return (
     <footer className="site-footer site-footer--dark" id="contact">
-      <p className="footer__mega" aria-hidden="true">LET’Z PLAY</p>
+      <p className="footer__mega" aria-hidden="true">AURA WEARS</p>
       <div className="footer__bar">
-        <span>© {year} LET’Z PLAY</span>
+        <span>© {year} AURA WEARS</span>
         {hasContact && (
           <span className="footer__links">
             {CONTACT.instagram && <a href={CONTACT.instagram} target="_blank" rel="noreferrer">Instagram</a>}
